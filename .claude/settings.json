@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /Users/lucas/Desktop/Ironhack_projects/klar-advisory/frontend/app/results/\\\\[id\\\\])"
+    ],
+    "additionalDirectories": [
+      "/Users/lucas/Desktop/Ironhack_projects/klar-advisory/frontend/app/results"
+    ]
+  }
+}
