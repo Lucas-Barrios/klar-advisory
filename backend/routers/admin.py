@@ -38,3 +38,29 @@ def review_diagnostic(diagnostic_id: str, action: ReviewAction):
     }).execute()
 
     return {"status": "ok", "message": f"Diagnostic {action.status}"}
+
+@router.get("/stats")
+def get_stats():
+    supabase = get_supabase()
+    from datetime import datetime, timezone
+
+    pending = supabase.table("diagnostics").select(
+        "id", count="exact"
+    ).eq("status", "pending").execute()
+
+    today_start = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    ).isoformat()
+    approved_today = supabase.table("diagnostics").select(
+        "id", count="exact"
+    ).eq("status", "approved").gte("reviewed_at", today_start).execute()
+
+    total = supabase.table("diagnostics").select(
+        "id", count="exact"
+    ).execute()
+
+    return {
+        "pending": pending.count or 0,
+        "approved_today": approved_today.count or 0,
+        "total": total.count or 0
+    }
