@@ -27,7 +27,7 @@ Results are held in a pending state until a human consultant reviews and approve
 
 **Risk Level: HIGH RISK**
 
-**Classification basis:** Annex III, Point 3(a) of Regulation (EU) 2024/1689
+**Classification basis:** Article 6(3) in conjunction with Annex III, Point 3(a) of Regulation (EU) 2024/1689
 
 > "AI systems intended to be used for the purpose of determining access to educational and vocational training institutions, as well as for assessing persons in the context of educational and vocational training institutions, including for the purpose of assessing learning outcomes..."
 

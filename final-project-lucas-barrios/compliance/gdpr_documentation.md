@@ -88,139 +88,125 @@ Student (results delivery)
 
 ---
 
-## 3. Assessment of Necessity and Proportionality
+## 3. Necessity and Proportionality Assessment
 
-### 3.1 Is Processing Necessary?
+**Is the processing necessary?** Yes. Each data element collected maps to a specific, non-substitutable scoring function: German level is the single highest-weighted scoring dimension and cannot be omitted; financial situation is necessary because the German student visa requires demonstrable proof of ~€11,000 in a blocked account, making financial readiness a material eligibility factor, not an incidental detail; country of origin determines which visa pathway and recognition process applies.
 
-The processing is necessary to deliver the service. The student explicitly requests the diagnostic and provides their data for this purpose. Each data element collected serves a specific scoring function:
-
-- Name and email → identity and delivery (cannot be removed)
-- Country → eligibility varies significantly by country (cannot be removed)
-- German level → the single most important scoring factor (cannot be removed)
-- Financial situation → German student visa requires ~€11,000 blocked account (cannot be removed)
-- Age → optional but affects Ausbildung recommendations (students over 35 face more barriers)
-
-No data elements are collected beyond what is necessary for the stated purpose.
-
-### 3.2 Is the Scope Proportionate?
-
-The scope is proportionate because:
-- Data is used only for the stated diagnostic purpose
-- No data is sold, shared with advertisers, or used for unrelated profiling
-- Data is not used to train or fine-tune the AI model
-- Retention is limited (see Section 5)
-- The student explicitly initiates the process and can withdraw at any time
+**Is the scope proportionate?** Yes, on three grounds: (1) no data is collected beyond what each scoring dimension requires; (2) data is never used for purposes beyond the stated diagnostic service — no advertising, no resale, no secondary profiling; (3) data is not used to train or fine-tune any model, eliminating the indefinite-retention risk associated with training data; (4) the student initiates the process voluntarily and may withdraw at any point before approval.
 
 ---
 
 ## 4. Risk Assessment
 
-### Risk 1 — Incorrect AI Assessment Causing Harm
-**Description:** The AI agent generates an inaccurate readiness score, leading a student to make incorrect decisions about their Germany pathway (e.g. moving too early, or being discouraged when they shouldn't be).
-
-**Likelihood:** Medium (3/5) — LLMs can produce inconsistent outputs; scoring rubric reduces but doesn't eliminate this.
-
-**Impact:** High (4/5) — A student acting on incorrect advice could waste significant money and time.
-
+### Risk 1 — Incorrect AI Assessment Causing Material Harm to the Student
+**Likelihood:** 3/5 — LLM outputs can vary; scoring rubric reduces but does not eliminate this.
+**Impact:** 4/5 — A student acting on an inaccurate score could make a costly, time-sensitive relocation decision.
 **Risk score:** 12/25
-
-**Mitigation:** Mandatory human review gate (Article 14). Consultant validates all outputs before delivery. Disclaimer on results page: "For guidance only, not legal or immigration advice."
-
-**Residual risk:** Low — no student receives results without human validation.
-
----
-
-### Risk 2 — Data Breach / Unauthorised Access
-**Description:** Student personal data (including financial situation and country of origin) is accessed by unauthorised parties.
-
-**Likelihood:** Low (2/5) — Supabase RLS policies, API key management, HTTPS enforced.
-
-**Impact:** High (4/5) — Exposure of financial situation and nationality could cause significant harm.
-
-**Risk score:** 8/25
-
-**Mitigation:** Row-Level Security on all Supabase tables. API keys in environment variables, never in source code. GitHub push protection blocks accidental commits. Service role key (read/write) separated from anon key (read-only). HTTPS enforced on all endpoints.
-
+**Mitigation:** Mandatory human review gate (Article 14 mechanism, doubling as the Article 22 safeguard described in Section 7). Explicit "guidance only" disclaimer on every results view.
 **Residual risk:** Low.
 
----
+### Risk 2 — Data Breach / Unauthorised Access
+**Likelihood:** 2/5 — RLS policies, key separation, and HTTPS reduce likelihood.
+**Impact:** 4/5 — Exposure of financial situation and nationality data could cause real harm to affected students.
+**Risk score:** 8/25
+**Mitigation:** Supabase Row-Level Security on all tables; service-role (write) and anon (read-only) keys kept separate; secrets never committed to source control, enforced by GitHub push protection; HTTPS enforced on all endpoints.
+**Residual risk:** Low.
 
-### Risk 3 — Transfer to Anthropic (US) Without Adequate Safeguards
-**Description:** Student personal data is sent to Anthropic's US-based API without adequate transfer mechanism.
+### Risk 3 — International Transfer to Anthropic (US) Without Adequate Safeguards
+**Likelihood:** 5/5 — this transfer occurs on every single diagnostic request; it is not an edge case but the central data flow of the system.
+**Impact:** 4/5 — Article 44 requires an adequate transfer mechanism for any transfer of personal data outside the EEA; absence of one would render the entire processing activity unlawful, not just risky.
+**Risk score:** 20/25 (recalculated upward — see Section 8 for full treatment)
+**Mitigation:** See Section 8 below for the complete transfer mechanism analysis.
+**Residual risk:** See Section 8 sign-off.
 
-**Likelihood:** Medium (3/5) — Transfer happens on every diagnostic request.
-
-**Impact:** High (4/5) — GDPR Article 46 requires adequate safeguards for transfers outside EEA.
-
-**Risk score:** 12/25
-
-**Mitigation:** Anthropic offers a Data Processing Agreement (DPA) with Standard Contractual Clauses. Before pilot launch: sign Anthropic DPA, document the transfer in processing records. Alternative option at scale: evaluate EU-based LLM providers (Mistral AI — Paris-based) to eliminate the transfer risk entirely.
-
-**Residual risk:** Medium until DPA is signed. Low after.
-
----
-
-### Risk 4 — Automated Decision-Making Without Consent
-**Description:** The AI score could be considered a solely automated decision with legal/significant effect under GDPR Article 22.
-
-**Likelihood:** Medium (3/5) — The score affects whether a student pursues Germany, which is a significant life decision.
-
-**Impact:** Medium (3/5) — Article 22 violation could result in regulatory action.
-
+### Risk 4 — Automated Decision-Making Without Adequate Safeguard
+**Likelihood:** 3/5 — the AI-generated score, absent intervention, would constitute the entirety of the decision basis.
+**Impact:** 3/5 — Article 22 violation risk if no qualifying safeguard is in place.
 **Risk score:** 9/25
-
-**Mitigation:** The human review gate ensures no decision is solely automated — a consultant reviews every score before delivery. The disclaimer makes clear results are guidance only. Students have the right to request human review (which is already mandatory). No automated rejection occurs — the system only generates scores, it never denies access.
-
-**Residual risk:** Low — the architecture explicitly prevents solely automated decisions.
+**Mitigation:** Human review gate ensures the decision is never "based solely on automated processing" — see Section 7.
+**Residual risk:** Low, conditional on the human review step remaining structurally mandatory (verified — enforced at the database layer, not merely procedurally).
 
 ---
 
 ## 5. Data Subject Rights
 
-| Right | Applicable? | How Implemented |
-|---|---|---|
-| Right of access (Article 15) | ✅ Yes | Student can request full diagnostic record by emailing consultant. Response within 30 days. |
-| Right to rectification (Article 16) | ✅ Yes | Student can request correction of incorrect personal data. Resubmission of form available. |
-| Right to erasure (Article 17) | ✅ Yes | Student can request deletion of all records. Implemented via Supabase cascade delete on students table. Audit log anonymised (diagnostic_id retained, personal data removed). |
-| Right to restriction (Article 18) | ✅ Yes | Processing can be restricted on request pending review. |
-| Right to data portability (Article 20) | ✅ Yes | Full diagnostic JSON exportable on request. |
-| Right to object (Article 21) | ✅ Yes | Student can object to processing. Service cannot be delivered without the data, so objection results in account deletion. |
-| Rights re: automated decisions (Article 22) | ✅ Yes | No solely automated decisions — human review mandatory. Students can request human review explanation at any time. |
+| Right | Implementation |
+|---|---|
+| Access (Art. 15) | Email-based request to hello@klar.app; full JSON export within 30 days |
+| Rectification (Art. 16) | Correction request via email; resubmission triggers a fresh diagnostic free of charge if the error materially affected scoring |
+| Erasure (Art. 17) | Supabase cascade delete on the students table removes the student and all linked diagnostic records; audit log entries are anonymised (personal fields stripped, diagnostic_id retained for Article 12 continuity) |
+| Restriction (Art. 18) | Account flagged as restricted pending dispute resolution; no further processing until resolved |
+| Portability (Art. 20) | Full diagnostic record exportable as machine-readable JSON on request |
+| Objection (Art. 21) | Since processing rests on Article 6(1)(b) contract performance rather than legitimate interest, objection results in inability to provide the service and triggers erasure |
+| Article 22 safeguard | See Section 7 — no solely automated decision is ever made; explanation of scoring rationale available on request |
 
-**Contact for rights requests:** hello@klar.app (to be set up before pilot launch)
-**Response deadline:** 30 days (extendable to 90 days for complex requests)
+**Contact:** hello@klar.app · **Response window:** 30 days (extendable to 90 for complex requests under Article 12(3))
 
 ---
 
 ## 6. Retention Policy
 
-| Data Type | Retention Period | Justification |
+| Data Type | Retention | Justification |
 |---|---|---|
-| Student profile data | 24 months from last activity | Service delivery and follow-up |
+| Student profile | 24 months from last activity | Service delivery and follow-up |
 | Diagnostic results | 24 months from creation | Audit trail, EU AI Act Article 12 |
-| Audit log entries | 24 months from creation | EU AI Act compliance requirement |
+| Audit log | 24 months, anonymised after student erasure | EU AI Act Article 12 compliance |
 | Email correspondence | 12 months | Standard business retention |
-
-After retention period: personal data deleted, aggregate/anonymised data retained for product improvement.
 
 ---
 
-## 7. Conclusion and Sign-Off
+## 7. Article 22 Safeguard Analysis
 
-This DPIA identifies four material risks associated with the Klar UC-01 diagnostic system. All four risks have identified mitigations. The most significant residual risk (Anthropic DPA not yet signed) has a clear action item: sign the Anthropic DPA before pilot launch.
+GDPR Article 22(1) gives a data subject the right not to be subject to a decision "based solely on automated processing" that produces legal effects or similarly significantly affects them. Klar's architecture is designed so that this provision is never triggered in the first place, rather than relying on one of the Article 22(2) exceptions:
 
-The system architecture — specifically the mandatory human review gate — is the single most important design decision for GDPR compliance. It simultaneously satisfies Article 22 (no solely automated decisions), reduces the risk of incorrect advice reaching students, and implements Article 14 of the EU AI Act.
+- The AI agent's output is held in a pending state that is structurally incapable of reaching the student without an affirmative consultant action
+- The consultant reviews the complete substantive output (all scores, summary, roadmap) before approving — this is a genuine, informed review, not a procedural rubber stamp, satisfying the EDPB's "meaningful human involvement" standard
+- The consultant can reject the output outright, which is functionally equivalent to overriding the automated result
+- No automated rejection or denial of service ever occurs — the system only ever generates a score for the consultant's consideration; it does not itself grant or deny anything
 
-**DPIA conclusion:** Processing may proceed, subject to completion of the Anthropic DPA before pilot launch and implementation of the data subject rights process.
+**Conclusion:** Processing does not fall within the scope of Article 22(1) because the relevant decision is not, in fact, based solely on automated processing.
 
-**Prepared by:** Lucas Barrios, AI Consulting & Integration, Ironhack Berlin
+---
+
+## 8. International Transfer Analysis — Anthropic (United States)
+
+This is the highest-rated residual risk in this DPIA and is given dedicated treatment.
+
+**Nature of the transfer:** On every diagnostic request, the full student profile (name, country, age, language levels, education, work experience, timeline, financial situation, location, and any free-text context) is transmitted to Anthropic's API, hosted in the United States, for inference. Anthropic's standard API terms specify that this data is not used to train models and is retained only transiently for abuse-monitoring purposes before deletion.
+
+**Transfer mechanism under Chapter V GDPR:**
+The United States is not currently covered by a general EU adequacy decision for commercial data transfers of this kind (the EU-US Data Privacy Framework covers participating certified organisations specifically — this must be verified against Anthropic's current certification status). Absent confirmed adequacy coverage, the lawful transfer mechanism is Article 46(2)(c): Standard Contractual Clauses (SCCs), made available by Anthropic as part of its commercial Data Processing Addendum.
+
+**Required actions before this transfer can be considered fully compliant:**
+1. Execute Anthropic's Data Processing Addendum, incorporating the SCCs, before pilot launch
+2. Conduct a Transfer Impact Assessment (TIA) confirming that, notwithstanding US surveillance laws (e.g., FISA 702), the SCCs together with Anthropic's technical and organisational measures provide a level of protection essentially equivalent to that guaranteed in the EU, per the Schrems II standard
+3. Document the outcome of the TIA in this DPIA as an addendum once complete
+
+**Interim risk position (as of this assessment, prior to DPA execution):** The transfer is currently occurring on a provisional basis during MVP testing with synthetic and consenting pilot-tester data only. No real student personal data should be processed through this pathway in a live commercial pilot until the DPA is executed. This is the single most time-sensitive compliance action in the entire project.
+
+**Planned long-term mitigation:** Evaluate EU-based foundation model providers (e.g., Mistral AI, headquartered in Paris) as an alternative inference provider, which would eliminate this transfer risk entirely rather than merely mitigating it. This is recorded as a Phase 3 (Scale) consideration in the Strategic Deployment Plan.
+
+---
+
+## 9. Residual Risk Sign-Off
+
+| Risk | Pre-mitigation score | Post-mitigation residual | Acceptable to proceed? |
+|---|---|---|---|
+| Incorrect AI assessment | 12/25 | Low | Yes — human review gate active from Day 1 |
+| Data breach / unauthorised access | 8/25 | Low | Yes — RLS and key separation active from Day 1 |
+| International transfer to Anthropic | 20/25 | Medium — pending DPA execution | Conditional — proceed with synthetic/consenting test data only until DPA is signed; full real-user pilot launch is gated on this action |
+| Automated decision-making | 9/25 | Low | Yes — Article 22 safeguard structurally enforced |
+
+**Overall DPIA conclusion:** Processing may proceed for MVP testing and limited pilot recruitment under the current safeguards, with one binding condition: the Anthropic DPA with Standard Contractual Clauses must be executed before any diagnostic is run using real, non-test student personal data at pilot scale. This condition is the controller's explicit pre-requisite for treating the international transfer risk as adequately mitigated rather than merely identified.
+
+**Assessed by:** Lucas Barrios, AI Consulting & Integration, Ironhack Berlin
 **Date:** June 2026
-**Review date:** September 2026 (before scale launch)
+**Sign-off status:** Approved to proceed, subject to the binding condition above
+**Scheduled review:** Before Pilot phase transition (Week 3), and again before Scale phase (Month 2)
 
 ---
 
 *GDPR Data Protection Impact Assessment · Klar · Regulation (EU) 2016/679, Article 35 · June 2026*
--e 
 
 ---
 
