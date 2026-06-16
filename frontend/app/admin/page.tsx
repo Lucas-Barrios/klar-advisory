@@ -49,6 +49,26 @@ type DiagnosticRow = {
   } | null
 }
 
+type MatchedPosition = {
+  refnr: string
+  titel: string | null
+  arbeitgeber: string | null
+  ort: string | null
+  eintrittsdatum: string | null
+  application_url: string | null
+  fit_explanation: string
+  estimated_german_level_needed: string
+  german_level_concern: boolean | string
+  urgency_note: string
+}
+
+type AusbildungMatch = {
+  id: string
+  status: string
+  reasoning_summary: string | null
+  matched_positions: MatchedPosition[]
+}
+
 type TcoStats = {
   current_month_ai_calls: number
   successful_calls: number
@@ -344,6 +364,187 @@ function PasswordScreen({ onLogin }: { onLogin: (token: string) => Promise<boole
   )
 }
 
+function MatchedPositionsSection({
+  diagnosticId,
+  adminToken,
+}: {
+  diagnosticId: string
+  adminToken: string
+}) {
+  const [match, setMatch] = useState<AusbildungMatch | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch(
+          `${API_URL}/api/admin/diagnostics/${diagnosticId}/matches`,
+          { headers: { Authorization: `Bearer ${adminToken}` } }
+        )
+        if (res.ok) {
+          const data = await res.json()
+          setMatch(data)
+        }
+      } catch {
+        // silently fail — matches are supplementary
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [diagnosticId, adminToken])
+
+  if (loading) {
+    return (
+      <div
+        className="glass"
+        style={{ borderRadius: '16px', padding: '20px', marginTop: '16px', color: '#6B7280', fontSize: '0.875rem' }}
+      >
+        Loading matched positions…
+      </div>
+    )
+  }
+
+  if (!match || !match.matched_positions || match.matched_positions.length === 0) {
+    return (
+      <div
+        className="glass"
+        style={{ borderRadius: '16px', padding: '20px', marginTop: '16px' }}
+      >
+        <p
+          style={{
+            fontSize: '0.75rem',
+            color: '#6B7280',
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            marginBottom: '8px',
+          }}
+        >
+          Matched Positions
+        </p>
+        <p style={{ fontSize: '0.875rem', color: '#6B7280' }}>
+          No positions matched yet — cache may need a refresh.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className="glass"
+      style={{ borderRadius: '16px', padding: '20px', marginTop: '16px' }}
+    >
+      <p
+        style={{
+          fontSize: '0.75rem',
+          color: '#6B7280',
+          textTransform: 'uppercase',
+          letterSpacing: '0.08em',
+          marginBottom: '12px',
+        }}
+      >
+        Matched Positions
+      </p>
+
+      {match.reasoning_summary && (
+        <p style={{ fontSize: '0.8125rem', color: '#9CA3AF', lineHeight: 1.6, marginBottom: '16px' }}>
+          {match.reasoning_summary}
+        </p>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {match.matched_positions.map((pos, i) => {
+          const hasConcern =
+            pos.german_level_concern === true || pos.german_level_concern === 'true'
+          return (
+            <div
+              key={pos.refnr ?? i}
+              style={{
+                borderRadius: '10px',
+                border: '1px solid #1F2937',
+                padding: '14px',
+                background: 'rgba(255,255,255,0.02)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                <div>
+                  <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#F9FAFB', margin: 0 }}>
+                    {pos.arbeitgeber ?? '—'}
+                  </p>
+                  <p style={{ fontSize: '0.8125rem', color: '#9CA3AF', marginTop: '2px' }}>
+                    {pos.titel ?? '—'} · {pos.ort ?? '—'}
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                  <span
+                    style={{
+                      borderRadius: '9999px',
+                      fontSize: '0.6875rem',
+                      fontWeight: 500,
+                      padding: '2px 8px',
+                      background: 'rgba(59,130,246,0.12)',
+                      color: '#60A5FA',
+                      border: '1px solid rgba(59,130,246,0.2)',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {pos.estimated_german_level_needed}+
+                  </span>
+                  {hasConcern && (
+                    <span
+                      style={{
+                        borderRadius: '9999px',
+                        fontSize: '0.6875rem',
+                        fontWeight: 600,
+                        padding: '2px 8px',
+                        background: 'rgba(239,68,68,0.12)',
+                        color: '#F87171',
+                        border: '1px solid rgba(239,68,68,0.25)',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      Level concern
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <p style={{ fontSize: '0.8125rem', color: '#9CA3AF', lineHeight: 1.5, marginTop: '8px' }}>
+                {pos.fit_explanation}
+              </p>
+
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: '8px',
+                }}
+              >
+                {pos.eintrittsdatum && (
+                  <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>
+                    Start: {pos.eintrittsdatum}
+                  </span>
+                )}
+                {pos.application_url && (
+                  <a
+                    href={pos.application_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontSize: '0.75rem', color: '#3B82F6' }}
+                  >
+                    View on BA →
+                  </a>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function DetailsPanel({
   row,
   notes,
@@ -351,6 +552,7 @@ function DetailsPanel({
   onClose,
   onApprove,
   onReject,
+  adminToken,
 }: {
   row: DiagnosticRow
   notes: string
@@ -358,6 +560,7 @@ function DetailsPanel({
   onClose: () => void
   onApprove: (id: string, notes: string) => Promise<void>
   onReject: (id: string, notes: string) => Promise<void>
+  adminToken: string
 }) {
   const [busy, setBusy] = useState(false)
   const [roadmapOpen, setRoadmapOpen] = useState(false)
@@ -610,6 +813,13 @@ function DetailsPanel({
             ✓ Approve
           </button>
         </div>
+
+        {row.students?.pathway === 'ausbildung' && (
+          <MatchedPositionsSection
+            diagnosticId={row.id}
+            adminToken={adminToken}
+          />
+        )}
 
         {row.roadmap && row.roadmap.length > 0 && (
           <div style={{ marginTop: '16px' }}>
@@ -1443,6 +1653,7 @@ export default function AdminPage() {
           onClose={() => setSelected(null)}
           onApprove={(id, n) => handleReview(id, 'approved', n)}
           onReject={(id, n) => handleReview(id, 'rejected', n)}
+          adminToken={adminToken}
         />
       )}
 

@@ -104,6 +104,14 @@ def review_diagnostic(diagnostic_id: str, action: ReviewAction):
         "reviewed_at": datetime.now(timezone.utc).isoformat()
     }).eq("id", diagnostic_id).execute()
 
+    try:
+        supabase.table("ausbildung_matches").update({
+            "status": action.status,
+            "reviewed_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("diagnostic_id", diagnostic_id).execute()
+    except Exception as e:
+        logger.warning("Failed to update ausbildung_matches status: %s", e)
+
     supabase.table("audit_log").insert({
         "diagnostic_id": diagnostic_id,
         "action": f"review_{action.status}",
@@ -274,6 +282,22 @@ def post_evaluation_experiment_compare(
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail="Could not compare evaluation experiment") from e
+
+@router.post("/refresh-positions")
+def refresh_positions():
+    from services.ausbildung_cache import refresh_all_positions
+    results = refresh_all_positions()
+    return {"status": "ok", "refreshed": results}
+
+
+@router.get("/diagnostics/{diagnostic_id}/matches")
+def get_diagnostic_matches(diagnostic_id: str):
+    supabase = get_supabase()
+    result = supabase.table("ausbildung_matches").select("*").eq(
+        "diagnostic_id", diagnostic_id
+    ).execute()
+    return result.data[0] if result.data else None
+
 
 @router.get("/stats")
 def get_stats():

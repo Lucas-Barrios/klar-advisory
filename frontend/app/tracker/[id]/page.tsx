@@ -28,9 +28,12 @@ export default async function TrackerPage(props: PageProps<'/tracker/[id]'>) {
   let data: PublicDiagnosticResult | null = null
   let error = false
 
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 8000)
   try {
     const res = await fetch(`${API_URL}/api/diagnostic/${id}/result`, {
       cache: 'no-store',
+      signal: controller.signal,
     })
     if (!res.ok) {
       error = true
@@ -39,6 +42,8 @@ export default async function TrackerPage(props: PageProps<'/tracker/[id]'>) {
     }
   } catch {
     error = true
+  } finally {
+    clearTimeout(timer)
   }
 
   if (error || !data) {

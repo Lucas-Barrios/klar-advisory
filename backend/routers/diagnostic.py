@@ -103,6 +103,12 @@ async def create_diagnostic(student: StudentProfileInput, background_tasks: Back
             notify_n8n, diagnostic_id, student.name, student.email, student.pathway
         )
 
+        # Trigger position matching in background for ausbildung pathway
+        if student.pathway == "ausbildung":
+            background_tasks.add_task(
+                run_ausbildung_matching, diagnostic_id, student_data
+            )
+
         return DiagnosticResponse(
             diagnostic_id=diagnostic_id,
             status="pending",
@@ -184,6 +190,7 @@ def public_diagnostic_result(record: dict) -> dict:
         "students": {
             "name": display_name,
             "full_name": display_name,
+            "pathway": student.get("pathway"),
         },
     }
 
@@ -201,6 +208,25 @@ def get_diagnostic_result(diagnostic_id: str):
     if not result.data:
         raise HTTPException(status_code=404, detail="Diagnostic not found")
     return public_diagnostic_result(result.data)
+
+
+@router.get("/{diagnostic_id}/matches")
+def get_public_matches(diagnostic_id: str):
+    supabase = get_supabase()
+    try:
+        diagnostic = supabase.table("diagnostics").select(
+            "id, status"
+        ).eq("id", diagnostic_id).single().execute()
+    except Exception as e:
+        raise HTTPException(status_code=404, detail="Diagnostic not found") from e
+
+    if not diagnostic.data or diagnostic.data.get("status") != "approved":
+        raise HTTPException(status_code=404, detail="Matches not available")
+
+    result = supabase.table("ausbildung_matches").select("*").eq(
+        "diagnostic_id", diagnostic_id
+    ).execute()
+    return result.data[0] if result.data else None
 
 
 class ProgressUpdate(BaseModel):
@@ -257,6 +283,21 @@ def update_progress(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def run_ausbildung_matching(diagnostic_id: str, student_data: dict) -> None:
+    try:
+        from agents.ausbildung_matcher import match_positions
+        supabase = get_supabase()
+        match_result = match_positions(student_data)
+        supabase.table("ausbildung_matches").insert({
+            "diagnostic_id": diagnostic_id,
+            "matched_positions": match_result.get("matches", []),
+            "reasoning_summary": match_result.get("overall_summary", ""),
+            "status": "pending",
+        }).execute()
+    except Exception as e:
+        print(f"Position matching failed (non-blocking): {e}")
 
 
 async def notify_n8n(diagnostic_id: str, name: str, email: str, pathway: str):

@@ -44,6 +44,7 @@ export type Diagnostic = {
     name?: string | null
     full_name?: string | null
     email?: string | null
+    pathway?: string | null
   } | null
 }
 
@@ -336,23 +337,44 @@ export default function ResultsContent({
             </p>
           )}
 
-          <a
-            href={`/tracker/${id}`}
+          <div
             className="animate-fade-up delay-3"
-            style={{
-              display: 'inline-block',
-              background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
-              color: 'white',
-              padding: '12px 28px',
-              borderRadius: '9999px',
-              fontWeight: 600,
-              textDecoration: 'none',
-              fontSize: '14px',
-              marginTop: '20px',
-            }}
+            style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '20px' }}
           >
-            📋 Open My Tracker →
-          </a>
+            <a
+              href={`/tracker/${id}`}
+              style={{
+                display: 'inline-block',
+                background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
+                color: 'white',
+                padding: '12px 28px',
+                borderRadius: '9999px',
+                fontWeight: 600,
+                textDecoration: 'none',
+                fontSize: '14px',
+              }}
+            >
+              📋 Open My Tracker →
+            </a>
+            {diagnostic.students?.pathway === 'ausbildung' && (
+              <a
+                href={`/matches/${id}`}
+                style={{
+                  display: 'inline-block',
+                  background: 'rgba(245,158,11,0.12)',
+                  border: '1px solid rgba(245,158,11,0.35)',
+                  color: '#F59E0B',
+                  padding: '12px 28px',
+                  borderRadius: '9999px',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  fontSize: '14px',
+                }}
+              >
+                🎯 View Matched Positions →
+              </a>
+            )}
+          </div>
         </div>
 
         {/* Section 2 — Dimension scores */}
