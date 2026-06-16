@@ -1,8 +1,10 @@
 'use client'
 import { useState } from 'react'
+import { useLanguage } from '@/lib/LanguageContext'
 
 export default function CopyLinkButton({ id }: { id: string }) {
   const [copied, setCopied] = useState(false)
+  const { t } = useLanguage()
 
   const handleCopy = async () => {
     const url = window.location.href
@@ -26,7 +28,7 @@ export default function CopyLinkButton({ id }: { id: string }) {
         transition: 'all 0.2s',
       }}
     >
-      {copied ? '✓ Link copied!' : '🔗 Copy results link'}
+      {copied ? `✓ ${t.results.copied}` : `🔗 ${t.results.copyLink}`}
     </button>
   )
 }

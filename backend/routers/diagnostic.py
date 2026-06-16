@@ -1,14 +1,53 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Header, status
 from models.schemas import StudentProfileInput, DiagnosticResponse
-from agents.germany_diagnostic import run_diagnostic
+from agents.germany_diagnostic import DiagnosticAIError, run_diagnostic
 from database import get_supabase
-import httpx, os
+from pydantic import BaseModel, Field, field_validator
+from services.ai_observability import (
+    persist_usage_event,
+    safe_error_type,
+    usage_event_with_context,
+)
+from services.admin_auth import extract_bearer_token
+from services.diagnostic_versions import (
+    DIAGNOSTIC_PROMPT_VERSION,
+    DIAGNOSTIC_RUBRIC_VERSION,
+)
+from services.progress_auth import (
+    generate_progress_token,
+    hash_progress_token,
+    verify_progress_token,
+)
+import httpx
+import os
 
 router = APIRouter()
+
+
+def record_ai_usage(
+    supabase,
+    usage_event: dict | None,
+    *,
+    diagnostic_id: str | None,
+    student_id: str | None,
+) -> bool:
+    if not usage_event:
+        return False
+    event = usage_event_with_context(
+        usage_event,
+        diagnostic_id=diagnostic_id,
+        student_id=student_id,
+    )
+    return persist_usage_event(supabase, event)
+
 
 @router.post("/", response_model=DiagnosticResponse)
 async def create_diagnostic(student: StudentProfileInput, background_tasks: BackgroundTasks):
     supabase = get_supabase()
+    student_id = None
+    diagnostic_id = None
+    ai_usage_event = None
+    usage_logged = False
     try:
         student_data = student.model_dump()
 
@@ -18,8 +57,10 @@ async def create_diagnostic(student: StudentProfileInput, background_tasks: Back
 
         # Run agent
         output = run_diagnostic(student_data)
+        ai_usage_event = output.get("_ai_usage")
 
         # Save diagnostic
+        progress_token = generate_progress_token()
         d = supabase.table("diagnostics").insert({
             "student_id": student_id,
             "overall_score": output["overall_score"],
@@ -33,16 +74,28 @@ async def create_diagnostic(student: StudentProfileInput, background_tasks: Back
             "roadmap": output["roadmap"],
             "recommendations": output["recommendations"],
             "raw_output": output.get("raw_output", ""),
-            "status": "pending"
+            "status": "pending",
+            "diagnostic_prompt_version": DIAGNOSTIC_PROMPT_VERSION,
+            "diagnostic_rubric_version": DIAGNOSTIC_RUBRIC_VERSION,
+            "progress_token_hash": hash_progress_token(progress_token),
         }).execute()
         diagnostic_id = d.data[0]["id"]
+        try:
+            usage_logged = record_ai_usage(
+                supabase,
+                ai_usage_event,
+                diagnostic_id=diagnostic_id,
+                student_id=student_id,
+            )
+        except Exception:
+            usage_logged = False
 
         # Audit log
         supabase.table("audit_log").insert({
             "diagnostic_id": diagnostic_id,
             "action": "diagnostic_created",
             "actor": "system",
-            "details": {"student_email": student.email, "pathway": student.pathway}
+            "details": {"pathway": student.pathway}
         }).execute()
 
         # Notify n8n in background
@@ -53,9 +106,155 @@ async def create_diagnostic(student: StudentProfileInput, background_tasks: Back
         return DiagnosticResponse(
             diagnostic_id=diagnostic_id,
             status="pending",
-            message="Your diagnostic is being reviewed. You will receive your results by email once approved."
+            message="Your diagnostic is being reviewed. You will receive your results by email once approved.",
+            progress_token=progress_token,
         )
 
+    except DiagnosticAIError as e:
+        if student_id:
+            record_ai_usage(
+                supabase,
+                e.usage_event,
+                diagnostic_id=None,
+                student_id=student_id,
+            )
+        raise HTTPException(
+            status_code=502,
+            detail="Diagnostic AI service is temporarily unavailable. Please try again later.",
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print("=== DIAGNOSTIC CREATION FAILED ===")
+        print(traceback.format_exc())
+        if ai_usage_event and not usage_logged and student_id:
+            try:
+                record_ai_usage(
+                    supabase,
+                    ai_usage_event,
+                    diagnostic_id=diagnostic_id,
+                    student_id=student_id,
+                )
+            except Exception:
+                pass
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not create diagnostic: {str(e)}",
+        ) from e
+
+
+def public_diagnostic_result(record: dict) -> dict:
+    diagnostic_id = record.get("id")
+    status = record.get("status")
+    student = record.get("students") or {}
+    display_name = student.get("name") or student.get("full_name")
+    if status == "rejected":
+        return {
+            "diagnostic_id": diagnostic_id,
+            "status": "not_available",
+            "message": "This diagnostic result is not available.",
+        }
+    if status == "pending":
+        return {
+            "diagnostic_id": diagnostic_id,
+            "status": "pending",
+            "message": "Your diagnostic is still under review.",
+        }
+    return {
+        "diagnostic_id": diagnostic_id,
+        "id": diagnostic_id,
+        "status": status,
+        "overall_score": record.get("overall_score"),
+        "dimension_scores": {
+            "language": record.get("language_score"),
+            "education": record.get("education_score"),
+            "pathway_fit": record.get("pathway_fit_score"),
+            "timeline": record.get("timeline_score"),
+            "financial": record.get("financial_score"),
+            "documentation": record.get("documentation_score"),
+        },
+        "summary": record.get("summary"),
+        "roadmap": record.get("roadmap"),
+        "recommendations": record.get("recommendations"),
+        "completed_steps": record.get("completed_steps") or [],
+        "student": {
+            "name": display_name,
+        },
+        "students": {
+            "name": display_name,
+            "full_name": display_name,
+        },
+    }
+
+
+@router.get("/{diagnostic_id}/result")
+def get_diagnostic_result(diagnostic_id: str):
+    supabase = get_supabase()
+    try:
+        result = supabase.table("diagnostics").select(
+            "*, students(name,full_name,email)"
+        ).eq("id", diagnostic_id).single().execute()
+    except Exception as e:
+        raise HTTPException(status_code=404, detail="Diagnostic not found") from e
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Diagnostic not found")
+    return public_diagnostic_result(result.data)
+
+
+class ProgressUpdate(BaseModel):
+    completed_steps: list[int] = Field(default_factory=list, max_length=24)
+
+    @field_validator("completed_steps")
+    @classmethod
+    def validate_completed_steps(cls, value: list[int]) -> list[int]:
+        if any(step < 0 or step > 24 for step in value):
+            raise ValueError("completed steps must be between 0 and 24")
+        return sorted(set(value))
+
+
+@router.patch("/{diagnostic_id}/progress")
+def update_progress(
+    diagnostic_id: str,
+    update: ProgressUpdate,
+    authorization: str | None = Header(default=None),
+):
+    supabase = get_supabase()
+    try:
+        diagnostic = supabase.table("diagnostics").select(
+            "id, progress_token_hash"
+        ).eq("id", diagnostic_id).single().execute()
+
+        if not diagnostic.data:
+            raise HTTPException(status_code=404, detail="Diagnostic not found")
+
+        token = extract_bearer_token(authorization)
+        if token is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Missing progress authorization",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        if not verify_progress_token(
+            token,
+            (diagnostic.data or {}).get("progress_token_hash"),
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Invalid progress authorization",
+            )
+
+        result = supabase.table("diagnostics").update({
+            "completed_steps": update.completed_steps
+        }).eq("id", diagnostic_id).execute()
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Diagnostic not found")
+
+        return {"status": "ok", "completed_steps": update.completed_steps}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -65,13 +264,27 @@ async def notify_n8n(diagnostic_id: str, name: str, email: str, pathway: str):
     if not webhook:
         return
     try:
-        async with httpx.AsyncClient() as c:
-            await c.post(webhook, json={
+        timeout = float(os.getenv("N8N_WEBHOOK_TIMEOUT_SECONDS", "10"))
+        async with httpx.AsyncClient(timeout=timeout) as c:
+            response = await c.post(webhook, json={
                 "diagnostic_id": diagnostic_id,
                 "student_name": name,
                 "student_email": email,
                 "pathway": pathway,
                 "review_url": f"{os.getenv('ADMIN_URL', 'http://localhost:3001')}/admin"
             })
-    except Exception:
-        pass
+            response.raise_for_status()
+    except Exception as e:
+        try:
+            supabase = get_supabase()
+            supabase.table("audit_log").insert({
+                "diagnostic_id": diagnostic_id,
+                "action": "n8n_webhook_failed",
+                "actor": "system",
+                "details": {
+                    "error_type": safe_error_type(e),
+                    "pathway": pathway,
+                }
+            }).execute()
+        except Exception:
+            pass

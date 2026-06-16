@@ -1,6 +1,23 @@
+'use client'
 import Link from 'next/link'
+import { useLanguage } from '@/lib/LanguageContext'
 
 export default function HomePage() {
+  const { t } = useLanguage()
+  const l = t.landing
+
+  const stats = [
+    { num: l.stat1Num, label: l.stat1Label },
+    { num: l.stat2Num, label: l.stat2Label },
+    { num: l.stat3Num, label: l.stat3Label },
+  ]
+
+  const features = [
+    { num: '01', title: l.feature1Title, desc: l.feature1Desc },
+    { num: '02', title: l.feature2Title, desc: l.feature2Desc },
+    { num: '03', title: l.feature3Title, desc: l.feature3Desc },
+  ]
+
   return (
     <div className="flex flex-col min-h-screen" style={{ background: '#0A0E1A' }}>
       {/* Hero */}
@@ -36,7 +53,7 @@ export default function HomePage() {
               paddingBottom: '6px',
             }}
           >
-            ✦ AI-Powered · Human-Reviewed
+            ✦ {l.badge}
           </div>
 
           {/* Headline */}
@@ -50,11 +67,11 @@ export default function HomePage() {
               maxWidth: '700px',
             }}
           >
-            Your clear
+            {l.headline1}
             <br />
-            path to
+            {l.headline2}
             <br />
-            <span className="gradient-text">Germany.</span>
+            <span className="gradient-text">{l.headline3}</span>
           </h1>
 
           {/* Subheadline */}
@@ -67,8 +84,7 @@ export default function HomePage() {
               lineHeight: 1.6,
             }}
           >
-            Free AI diagnostic for Latin Americans pursuing university, Ausbildung,
-            or work visa pathways in Germany. Get your personalised score in 3 minutes.
+            {l.subheadline}
           </p>
 
           {/* CTA */}
@@ -84,7 +100,7 @@ export default function HomePage() {
               letterSpacing: '-0.01em',
             }}
           >
-            Start your diagnostic →
+            {l.cta}
           </Link>
 
           <Link
@@ -92,11 +108,11 @@ export default function HomePage() {
             className="block text-sm hover:text-white underline"
             style={{ color: '#9CA3AF', marginTop: '12px' }}
           >
-            See a sample result →
+            {l.demoLink}
           </Link>
 
           <p className="mt-4 text-sm" style={{ color: '#6B7280' }}>
-            Free · No account needed · Results in ~60 seconds
+            {l.ctaSub}
           </p>
         </div>
       </section>
@@ -107,11 +123,7 @@ export default function HomePage() {
           className="max-w-3xl mx-auto px-6 flex items-center justify-center gap-16 flex-wrap"
           style={{ paddingTop: '32px', paddingBottom: '32px' }}
         >
-          {[
-            { num: '3 min', label: 'Average completion time' },
-            { num: '6', label: 'Dimensions scored' },
-            { num: '100%', label: 'Human reviewed' },
-          ].map(({ num, label }) => (
+          {stats.map(({ num, label }) => (
             <div key={label} className="text-center">
               <div className="gradient-text font-bold" style={{ fontSize: '1.875rem' }}>
                 {num}
@@ -130,27 +142,11 @@ export default function HomePage() {
           className="text-center font-bold mb-12"
           style={{ fontSize: '2.25rem', letterSpacing: '-0.03em', color: '#F9FAFB' }}
         >
-          How Klar works
+          {l.featuresTitle}
         </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          {[
-            {
-              num: '01',
-              title: 'Tell us about yourself',
-              desc: 'Answer 12 quick questions about your background, goals, and timeline.',
-            },
-            {
-              num: '02',
-              title: 'AI analyses your profile',
-              desc: 'Our agent scores you across 6 dimensions and builds a personalised roadmap.',
-            },
-            {
-              num: '03',
-              title: 'Expert reviews your result',
-              desc: 'A consultant validates everything before it reaches you. No hallucinations, no generic advice.',
-            },
-          ].map(({ num, title, desc }) => (
+          {features.map(({ num, title, desc }) => (
             <div
               key={num}
               className="feature-card glass rounded-2xl cursor-default"

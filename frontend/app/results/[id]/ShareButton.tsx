@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import { useLanguage } from '@/lib/LanguageContext'
 
 export function ShareButton({ id }: { id: string }) {
   const [copied, setCopied] = useState(false)
+  const { t } = useLanguage()
 
   async function handleShare() {
     const url = `${window.location.origin}/results/${id}`
@@ -22,7 +24,7 @@ export function ShareButton({ id }: { id: string }) {
       className="glass rounded-full font-medium transition-all"
       style={{ padding: '12px 24px', color: '#F9FAFB' }}
     >
-      {copied ? 'Copied! ✓' : 'Share my result'}
+      {copied ? `${t.results.copied} ✓` : t.results.shareBtn}
     </button>
   )
 }

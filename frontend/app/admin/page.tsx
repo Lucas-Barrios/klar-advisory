@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+const ADMIN_TOKEN_STORAGE_KEY = 'klar_admin_api_token'
 
 type DimensionScores = {
   language: number
@@ -37,13 +38,48 @@ type DiagnosticRow = {
   roadmap: RoadmapStep[] | null
   recommendations: Recommendation[] | null
   students: {
-    name: string
-    email: string
-    country: string
-    pathway: string
-    german_level: string
-    education_level?: string
-    timeline: string
+    name?: string | null
+    full_name?: string | null
+    email?: string | null
+    country?: string | null
+    pathway?: string | null
+    german_level?: string | null
+    education_level?: string | null
+    timeline?: string | null
+  } | null
+}
+
+type TcoStats = {
+  current_month_ai_calls: number
+  successful_calls: number
+  failed_calls: number
+  estimated_cost: number
+  forecasted_month_end_cost: number
+  average_cost_per_diagnostic: number
+  average_latency_ms: number
+}
+
+type EvaluationExperimentSummary = {
+  id: string
+  name: string
+  status: string
+  baseline_run_id: string
+  challenger_run_id: string
+  metric_name: string
+  summary?: {
+    p_value?: number | null
+    effect_size?: number | null
+    recommendation?: string | null
+    warnings?: string[]
+  }
+  latest_comparison?: {
+    metric_name?: string
+    baseline_mean?: number | null
+    challenger_mean?: number | null
+    p_value?: number | null
+    effect_size?: number | null
+    recommendation?: string | null
+    warnings?: string[]
   } | null
 }
 
@@ -77,6 +113,33 @@ function timeAgo(dateStr: string): string {
   const hours = Math.floor(mins / 60)
   if (hours < 24) return `${hours}h ago`
   return `${Math.floor(hours / 24)}d ago`
+}
+
+function formatUsd(value: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  }).format(value)
+}
+
+function formatStat(value: number | null | undefined, digits = 3): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return '—'
+  return value.toFixed(digits)
+}
+
+function shortId(value: string | null | undefined): string {
+  if (!value) return '—'
+  return value.slice(0, 8)
+}
+
+function studentDisplayName(student: DiagnosticRow['students']): string {
+  return student?.name ?? student?.full_name ?? 'Student'
+}
+
+function isAuthFailure(statusCode: number): boolean {
+  return statusCode === 401 || statusCode === 403
 }
 
 function PathwayBadge({ pathway }: { pathway: string }) {
@@ -157,14 +220,21 @@ function Toast({
   )
 }
 
-function PasswordScreen({ onLogin }: { onLogin: () => void }) {
-  const [password, setPassword] = useState('')
+function PasswordScreen({ onLogin }: { onLogin: (token: string) => Promise<boolean> }) {
+  const [token, setToken] = useState('')
   const [pwError, setPwError] = useState(false)
+  const [busy, setBusy] = useState(false)
 
-  function handleLogin() {
-    if (password === 'klar2026') {
-      onLogin()
-    } else {
+  async function handleLogin() {
+    const trimmedToken = token.trim()
+    if (!trimmedToken) {
+      setPwError(true)
+      return
+    }
+    setBusy(true)
+    const ok = await onLogin(trimmedToken)
+    setBusy(false)
+    if (!ok) {
       setPwError(true)
     }
   }
@@ -219,13 +289,13 @@ function PasswordScreen({ onLogin }: { onLogin: () => void }) {
 
         <input
           type="password"
-          value={password}
+          value={token}
           onChange={(e) => {
-            setPassword(e.target.value)
+            setToken(e.target.value)
             setPwError(false)
           }}
           onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-          placeholder="Enter password"
+          placeholder="Admin access token"
           style={{
             background: 'transparent',
             border: 'none',
@@ -244,12 +314,13 @@ function PasswordScreen({ onLogin }: { onLogin: () => void }) {
 
         {pwError && (
           <p style={{ fontSize: '0.75rem', color: '#EF4444', marginTop: '8px' }}>
-            Incorrect password. Try again.
+            Invalid access token. Try again.
           </p>
         )}
 
         <button
           onClick={handleLogin}
+          disabled={busy}
           className="cta-button"
           style={{
             background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
@@ -260,12 +331,13 @@ function PasswordScreen({ onLogin }: { onLogin: () => void }) {
             width: '100%',
             fontSize: '0.875rem',
             fontWeight: 600,
-            cursor: 'pointer',
+            cursor: busy ? 'wait' : 'pointer',
             marginTop: '16px',
             minHeight: '44px',
+            opacity: busy ? 0.7 : 1,
           }}
         >
-          Access dashboard →
+          {busy ? 'Checking...' : 'Access dashboard →'}
         </button>
       </div>
     </div>
@@ -358,7 +430,7 @@ function DetailsPanel({
               letterSpacing: '-0.02em',
             }}
           >
-            {row.students?.name}
+            {studentDisplayName(row.students)}
           </h2>
           <p style={{ fontSize: '0.875rem', color: '#6B7280', marginTop: '4px' }}>
             {row.students?.email}
@@ -633,7 +705,7 @@ function DiagnosticCard({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <p style={{ fontSize: '1.125rem', fontWeight: 600, color: '#F9FAFB' }}>
-            {row.students?.name}
+            {studentDisplayName(row.students)}
           </p>
           <div
             style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}
@@ -798,6 +870,7 @@ function DiagnosticCard({
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false)
+  const [adminToken, setAdminToken] = useState<string | null>(null)
   const [rows, setRows] = useState<DiagnosticRow[]>([])
   const [loadingRows, setLoadingRows] = useState(false)
   const [selected, setSelected] = useState<DiagnosticRow | null>(null)
@@ -805,11 +878,63 @@ export default function AdminPage() {
   const [activeFilter, setActiveFilter] = useState('all')
   const [notes, setNotes] = useState<Record<string, string>>({})
   const [stats, setStats] = useState({ pending: 0, approved_today: 0, total: 0 })
+  const [tco, setTco] = useState<TcoStats | null>(null)
+  const [latestExperiment, setLatestExperiment] = useState<EvaluationExperimentSummary | null>(null)
+
+  const clearAdminSession = useCallback(() => {
+    sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY)
+    setAdminToken(null)
+    setAuthed(false)
+    setRows([])
+    setSelected(null)
+    setTco(null)
+    setLatestExperiment(null)
+  }, [])
+
+  const adminHeaders = useCallback(
+    (extra?: Record<string, string>) => ({
+      ...(extra ?? {}),
+      Authorization: `Bearer ${adminToken}`,
+    }),
+    [adminToken]
+  )
+
+  useEffect(() => {
+    const storedToken = sessionStorage.getItem(ADMIN_TOKEN_STORAGE_KEY)
+    if (storedToken) {
+      setAdminToken(storedToken)
+      setAuthed(true)
+    }
+  }, [])
+
+  async function handleAdminLogin(token: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/stats`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) return false
+      const data = await res.json()
+      sessionStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, token)
+      setAdminToken(token)
+      setAuthed(true)
+      setStats(data)
+      return true
+    } catch {
+      return false
+    }
+  }
 
   const fetchRows = useCallback(async () => {
+    if (!adminToken) return
     setLoadingRows(true)
     try {
-      const res = await fetch(`${API_URL}/api/admin/diagnostics`)
+      const res = await fetch(`${API_URL}/api/admin/diagnostics`, {
+        headers: adminHeaders(),
+      })
+      if (isAuthFailure(res.status)) {
+        clearAdminSession()
+        return
+      }
       if (!res.ok) throw new Error()
       const data = await res.json()
       setRows(data)
@@ -818,32 +943,82 @@ export default function AdminPage() {
     } finally {
       setLoadingRows(false)
     }
-  }, [])
+  }, [adminHeaders, adminToken, clearAdminSession])
 
   const fetchStats = useCallback(async () => {
+    if (!adminToken) return
     try {
-      const res = await fetch(`${API_URL}/api/admin/stats`)
+      const res = await fetch(`${API_URL}/api/admin/stats`, {
+        headers: adminHeaders(),
+      })
+      if (isAuthFailure(res.status)) {
+        clearAdminSession()
+        return
+      }
       if (!res.ok) return
       const data = await res.json()
       setStats(data)
     } catch {
       // silently fail
     }
-  }, [])
+  }, [adminHeaders, adminToken, clearAdminSession])
+
+  const fetchTco = useCallback(async () => {
+    if (!adminToken) return
+    try {
+      const res = await fetch(`${API_URL}/api/admin/tco`, {
+        headers: adminHeaders(),
+      })
+      if (isAuthFailure(res.status)) {
+        clearAdminSession()
+        return
+      }
+      if (!res.ok) return
+      const data = await res.json()
+      setTco(data)
+    } catch {
+      // silently fail
+    }
+  }, [adminHeaders, adminToken, clearAdminSession])
+
+  const fetchEvaluationSummary = useCallback(async () => {
+    if (!adminToken) return
+    try {
+      const res = await fetch(`${API_URL}/api/admin/evaluation/summary`, {
+        headers: adminHeaders(),
+      })
+      if (isAuthFailure(res.status)) {
+        clearAdminSession()
+        return
+      }
+      if (!res.ok) return
+      const data = await res.json()
+      setLatestExperiment(data.latest_experiment ?? null)
+    } catch {
+      // silently fail
+    }
+  }, [adminHeaders, adminToken, clearAdminSession])
 
   useEffect(() => {
-    if (authed) {
+    if (authed && adminToken) {
       fetchRows()
       fetchStats()
+      fetchTco()
+      fetchEvaluationSummary()
     }
-  }, [authed, fetchRows, fetchStats])
+  }, [adminToken, authed, fetchRows, fetchStats, fetchTco, fetchEvaluationSummary])
 
   async function handleReview(id: string, status: 'approved' | 'rejected', reviewerNotes: string) {
+    if (!adminToken) return
     const res = await fetch(`${API_URL}/api/admin/diagnostics/${id}/review`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: adminHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ status, reviewer_notes: reviewerNotes }),
     })
+    if (isAuthFailure(res.status)) {
+      clearAdminSession()
+      return
+    }
     if (res.ok) {
       setRows((prev) => prev.filter((r) => r.id !== id))
       setSelected(null)
@@ -877,8 +1052,8 @@ export default function AdminPage() {
       ? rows
       : rows.filter((r) => r.students?.pathway === activeFilter)
 
-  if (!authed) {
-    return <PasswordScreen onLogin={() => setAuthed(true)} />
+  if (!authed || !adminToken) {
+    return <PasswordScreen onLogin={handleAdminLogin} />
   }
 
   return (
@@ -915,7 +1090,7 @@ export default function AdminPage() {
             </p>
           </div>
           <button
-            onClick={() => setAuthed(false)}
+            onClick={clearAdminSession}
             className="glass"
             style={{
               borderRadius: '9999px',
@@ -976,6 +1151,208 @@ export default function AdminPage() {
             </div>
           </div>
         </div>
+
+        {/* TCO summary */}
+        <div
+          className="glass"
+          style={{
+            borderRadius: '16px',
+            padding: '20px',
+            marginBottom: '32px',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '16px',
+              marginBottom: '16px',
+            }}
+          >
+            <div>
+              <h2
+                style={{
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  color: '#F9FAFB',
+                  margin: 0,
+                }}
+              >
+                AI TCO
+              </h2>
+              <p style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '4px' }}>
+                Month to date
+              </p>
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>
+              Avg latency {tco ? `${Math.round(tco.average_latency_ms)}ms` : '—'}
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+              gap: '16px',
+            }}
+          >
+            <div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#F9FAFB' }}>
+                {tco ? formatUsd(tco.estimated_cost) : '—'}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '4px' }}>
+                AI cost
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#F9FAFB' }}>
+                {tco ? formatUsd(tco.forecasted_month_end_cost) : '—'}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '4px' }}>
+                Forecast
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#F9FAFB' }}>
+                {tco ? String(tco.current_month_ai_calls) : '—'}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '4px' }}>
+                Calls
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#F9FAFB' }}>
+                {tco ? String(tco.failed_calls) : '—'}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '4px' }}>
+                Failures
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#F9FAFB' }}>
+                {tco ? formatUsd(tco.average_cost_per_diagnostic) : '—'}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '4px' }}>
+                Avg cost
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {latestExperiment && (
+          <div
+            className="glass"
+            style={{
+              borderRadius: '16px',
+              padding: '20px',
+              marginBottom: '32px',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                gap: '16px',
+                marginBottom: '16px',
+              }}
+            >
+              <div>
+                <h2
+                  style={{
+                    fontSize: '1rem',
+                    fontWeight: 700,
+                    color: '#F9FAFB',
+                    margin: 0,
+                  }}
+                >
+                  Evaluation Experiment
+                </h2>
+                <p style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '4px' }}>
+                  {latestExperiment.name}
+                </p>
+              </div>
+              <span
+                style={{
+                  borderRadius: '9999px',
+                  border: '1px solid rgba(45,212,191,0.28)',
+                  color: '#2DD4BF',
+                  fontSize: '0.75rem',
+                  padding: '4px 10px',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {latestExperiment.status}
+              </span>
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                gap: '16px',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>Baseline</div>
+                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#F9FAFB', marginTop: '4px' }}>
+                  {shortId(latestExperiment.baseline_run_id)}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>Challenger</div>
+                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#F9FAFB', marginTop: '4px' }}>
+                  {shortId(latestExperiment.challenger_run_id)}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>Metric</div>
+                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#F9FAFB', marginTop: '4px' }}>
+                  {latestExperiment.latest_comparison?.metric_name ?? latestExperiment.metric_name}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>p-value</div>
+                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#F9FAFB', marginTop: '4px' }}>
+                  {formatStat(latestExperiment.latest_comparison?.p_value ?? latestExperiment.summary?.p_value, 4)}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>Effect</div>
+                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#F9FAFB', marginTop: '4px' }}>
+                  {formatStat(latestExperiment.latest_comparison?.effect_size ?? latestExperiment.summary?.effect_size)}
+                </div>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.875rem', color: '#9CA3AF', lineHeight: 1.5, marginTop: '16px' }}>
+              {latestExperiment.latest_comparison?.recommendation
+                ?? latestExperiment.summary?.recommendation
+                ?? 'No comparison has been run yet.'}
+            </p>
+
+            {((latestExperiment.latest_comparison?.warnings ?? latestExperiment.summary?.warnings ?? []).length > 0) && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '12px' }}>
+                {(latestExperiment.latest_comparison?.warnings ?? latestExperiment.summary?.warnings ?? [])
+                  .slice(0, 3)
+                  .map((warning) => (
+                    <div
+                      key={warning}
+                      style={{
+                        borderLeft: '2px solid #F59E0B',
+                        color: '#FBBF24',
+                        fontSize: '0.75rem',
+                        paddingLeft: '8px',
+                      }}
+                    >
+                      {warning}
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Filter tabs */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', flexWrap: 'wrap' }}>

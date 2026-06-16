@@ -176,7 +176,7 @@ Submit a new student diagnostic.
 ### GET /api/admin/diagnostics
 Returns all pending diagnostics with nested student data.
 
-**Auth:** No token auth at MVP — admin dashboard is password-protected client-side.
+**Auth:** Backend bearer token required. Set `ADMIN_API_TOKEN` on the backend and send it as `Authorization: Bearer <token>`.
 
 **Response:** Array of diagnostic objects with nested `students` object.
 
@@ -204,6 +204,8 @@ Approve or reject a diagnostic.
 3. Audit log entry created (`review_approved` or `review_rejected`)
 4. (Planned) n8n webhook fires to send approval email to student
 
+Reviewer notes are stored in the diagnostic record for operational review, but notes written to generic audit/evaluation telemetry are redacted for direct identifiers.
+
 ---
 
 ### GET /api/admin/stats
@@ -229,12 +231,23 @@ Health check endpoint.
 
 ## 6. Database Schema
 
+Migration order for a fresh deploy:
+1. `20260616160000_create_base_diagnostic_schema.sql`
+2. `20260616161253_create_ai_usage_events.sql`
+3. `20260616163556_add_evaluation_foundation.sql`
+4. `20260616164826_add_evaluation_experiments.sql`
+
+The base migration enables `pgcrypto` for `gen_random_uuid()`, creates or verifies `students`, `diagnostics`, and `audit_log`, enables RLS, and keeps these backend-owned tables service-role only. Public result/tracker pages read through the backend API, not direct Data API table access.
+
+`students.name` is the canonical student display name. `students.full_name` is retained as a nullable compatibility alias and is backfilled from `name` where possible.
+
 ```sql
 -- Students table
 CREATE TABLE students (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   name TEXT NOT NULL,
+  full_name TEXT,
   email TEXT NOT NULL,
   country TEXT NOT NULL,
   age INTEGER,
@@ -252,7 +265,7 @@ CREATE TABLE students (
 
 -- Diagnostics table
 CREATE TABLE diagnostics (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   student_id UUID REFERENCES students(id) ON DELETE CASCADE,
   overall_score INTEGER CHECK (overall_score >= 0 AND overall_score <= 100),
@@ -269,12 +282,14 @@ CREATE TABLE diagnostics (
   status TEXT DEFAULT 'pending'
     CHECK (status IN ('pending', 'approved', 'rejected')),
   reviewed_at TIMESTAMPTZ,
-  reviewer_notes TEXT
+  reviewer_notes TEXT,
+  completed_steps INTEGER[] DEFAULT '{}',
+  progress_token_hash TEXT
 );
 
 -- Audit log (EU AI Act Article 12)
 CREATE TABLE audit_log (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   diagnostic_id UUID REFERENCES diagnostics(id),
   action TEXT NOT NULL,
@@ -302,7 +317,7 @@ Two states:
 Static pre-populated results for Carlos Mendoza (68/100 score). Amber demo banner at top. Identical layout to approved results.
 
 ### /admin — Consultant Dashboard
-Password gate (klar2026). Time-aware greeting. Real stats from API. Diagnostic cards with score bars and pathway badges. Filter tabs by pathway. Slide-in details panel with full diagnostic, notes textarea, approve/reject buttons. Toast notifications.
+Backend bearer-token gate. Time-aware greeting. Real stats from API. Diagnostic cards with score bars and pathway badges. Filter tabs by pathway. Slide-in details panel with full diagnostic, notes textarea, approve/reject buttons. Toast notifications.
 
 ---
 
@@ -340,7 +355,7 @@ cd backend
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-# Create .env with ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_KEY
+# Create .env with ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_KEY, ADMIN_API_TOKEN
 venv/bin/uvicorn main:app --reload
 # Runs on http://localhost:8000
 ```

@@ -1,10 +1,21 @@
 import json
 import os
+import time
+from typing import Any
+
 from anthropic import Anthropic
 from dotenv import load_dotenv
+from services.ai_observability import (
+    AI_MODEL,
+    AI_PROVIDER,
+    REQUEST_TYPE_GERMANY_DIAGNOSTIC,
+    build_usage_event,
+    estimate_tokens_from_text,
+    safe_error_type,
+)
 
 load_dotenv()
-client = Anthropic()
+client: Anthropic | None = None
 
 SYSTEM_PROMPT = """You are Klar's Germany Readiness Diagnostic Agent.
 You assess Latin American students and professionals who want to study or work in Germany.
@@ -35,8 +46,44 @@ Be honest. Be warm. This is career-changing advice.
 RESPOND ONLY WITH VALID JSON. No markdown, no text outside the JSON."""
 
 
-def run_diagnostic(student_data: dict) -> dict:
-    user_message = f"""Assess this student's Germany readiness:
+class DiagnosticAIError(RuntimeError):
+    def __init__(
+        self,
+        message: str,
+        *,
+        usage_event: dict[str, Any] | None = None,
+        error_type: str | None = None,
+    ):
+        super().__init__(message)
+        self.usage_event = usage_event
+        self.error_type = error_type
+
+
+def get_env_int(name: str, default: int, *, minimum: int, maximum: int) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+    except ValueError:
+        value = default
+    return min(max(value, minimum), maximum)
+
+
+def get_env_float(name: str, default: float, *, minimum: float, maximum: float) -> float:
+    try:
+        value = float(os.getenv(name, str(default)))
+    except ValueError:
+        value = default
+    return min(max(value, minimum), maximum)
+
+
+def get_anthropic_client() -> Anthropic:
+    global client
+    if client is None:
+        client = Anthropic()
+    return client
+
+
+def build_user_message(student_data: dict) -> str:
+    return f"""Assess this student's Germany readiness:
 
 Name: {student_data['name']}
 Country: {student_data['country']}
@@ -79,13 +126,17 @@ Return exactly this JSON structure:
   ]
 }}"""
 
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=4000,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user_message}]
-    )
 
+def extract_usage_tokens(response: Any) -> tuple[int, int]:
+    usage = getattr(response, "usage", None)
+    if not usage:
+        return 0, 0
+    input_tokens = int(getattr(usage, "input_tokens", 0) or 0)
+    output_tokens = int(getattr(usage, "output_tokens", 0) or 0)
+    return input_tokens, output_tokens
+
+
+def parse_diagnostic_response(response: Any) -> dict:
     raw = response.content[0].text.strip()
     if raw.startswith("```"):
         raw = raw.split("```")[1]
@@ -96,3 +147,107 @@ Return exactly this JSON structure:
     result = json.loads(raw)
     result["raw_output"] = response.content[0].text
     return result
+
+
+def run_diagnostic(
+    student_data: dict,
+    *,
+    anthropic_client: Any | None = None,
+    model: str | None = None,
+    max_output_tokens: int | None = None,
+    timeout_seconds: float | None = None,
+    max_input_chars: int | None = None,
+) -> dict:
+    selected_model = model or AI_MODEL
+    max_tokens = max_output_tokens or get_env_int(
+        "ANTHROPIC_MAX_OUTPUT_TOKENS",
+        4000,
+        minimum=256,
+        maximum=8000,
+    )
+    timeout = timeout_seconds or get_env_float(
+        "ANTHROPIC_TIMEOUT_SECONDS",
+        45.0,
+        minimum=5.0,
+        maximum=120.0,
+    )
+    input_limit = max_input_chars or get_env_int(
+        "DIAGNOSTIC_MAX_INPUT_CHARS",
+        8000,
+        minimum=1000,
+        maximum=20000,
+    )
+    user_message = build_user_message(student_data)
+    estimated_input_tokens = estimate_tokens_from_text(SYSTEM_PROMPT + user_message)
+
+    if len(user_message) > input_limit:
+        usage_event = build_usage_event(
+            provider=AI_PROVIDER,
+            model=selected_model,
+            request_type=REQUEST_TYPE_GERMANY_DIAGNOSTIC,
+            diagnostic_id=None,
+            student_id=None,
+            input_tokens=estimated_input_tokens,
+            output_tokens=0,
+            latency_ms=0,
+            success=False,
+            error_type="InputTooLong",
+        )
+        raise DiagnosticAIError(
+            "Diagnostic input is too long.",
+            usage_event=usage_event,
+            error_type="InputTooLong",
+        )
+
+    active_client = anthropic_client or get_anthropic_client()
+    input_tokens = estimated_input_tokens
+    output_tokens = 0
+    start = time.perf_counter()
+    try:
+        response = active_client.messages.create(
+            model=selected_model,
+            max_tokens=max_tokens,
+            system=SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_message}],
+            timeout=timeout,
+        )
+        latency_ms = int((time.perf_counter() - start) * 1000)
+        input_tokens, output_tokens = extract_usage_tokens(response)
+        if input_tokens == 0:
+            input_tokens = estimated_input_tokens
+
+        result = parse_diagnostic_response(response)
+        result["_ai_usage"] = build_usage_event(
+            provider=AI_PROVIDER,
+            model=selected_model,
+            request_type=REQUEST_TYPE_GERMANY_DIAGNOSTIC,
+            diagnostic_id=None,
+            student_id=None,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            latency_ms=latency_ms,
+            success=True,
+        )
+        return result
+    except DiagnosticAIError:
+        raise
+    except Exception as exc:
+        latency_ms = int((time.perf_counter() - start) * 1000)
+        error_type = safe_error_type(exc) or "AIError"
+        usage_event = build_usage_event(
+            provider=AI_PROVIDER,
+            model=selected_model,
+            request_type=REQUEST_TYPE_GERMANY_DIAGNOSTIC,
+            diagnostic_id=None,
+            student_id=None,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            latency_ms=latency_ms,
+            success=False,
+            error_type=error_type,
+        )
+        raise DiagnosticAIError(
+            "Diagnostic AI request failed.",
+            usage_event=usage_event,
+            error_type=error_type,
+        ) from exc

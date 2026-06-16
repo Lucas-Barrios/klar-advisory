@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useLanguage } from '@/lib/LanguageContext'
 
 type QuestionType = 'text' | 'email' | 'choice'
 
@@ -22,171 +23,180 @@ type Question = {
   options?: ChoiceOption[]
 }
 
-const questions: Question[] = [
-  {
-    id: 'name',
-    type: 'text',
-    question: "First things first — what's your name?",
-    placeholder: 'Your full name',
-    required: true,
-    hint: 'We will use this to personalise your results.',
-  },
-  {
-    id: 'email',
-    type: 'email',
-    question: 'And your email?',
-    placeholder: 'your@email.com',
-    required: true,
-    hint: 'Your results will be sent here once reviewed.',
-  },
-  {
-    id: 'country',
-    type: 'text',
-    question: 'Where are you from?',
-    placeholder: 'e.g. Colombia, Brazil, Mexico...',
-    required: true,
-    hint: null,
-  },
-  {
-    id: 'pathway',
-    type: 'choice',
-    question: 'What is your goal in Germany?',
-    required: true,
-    options: [
-      {
-        value: 'university',
-        label: 'Study at university',
-        description: "Bachelor's, Master's, or PhD programs",
-        emoji: '🎓',
-      },
-      {
-        value: 'ausbildung',
-        label: 'Ausbildung',
-        description: 'Vocational training · €700–1,200/month salary',
-        emoji: '🔧',
-      },
-      {
-        value: 'work_visa',
-        label: 'Work in Germany',
-        description: 'Skilled worker visa or Blue Card',
-        emoji: '💼',
-      },
-    ],
-  },
-  {
-    id: 'german_level',
-    type: 'choice',
-    question: 'How is your German?',
-    required: true,
-    hint: 'Be honest — this is the most important factor.',
-    options: [
-      { value: 'none', label: 'None', description: "I don't speak German yet", emoji: '😅' },
-      { value: 'A1', label: 'A1', description: 'Just started', emoji: '🌱' },
-      { value: 'A2', label: 'A2', description: 'Basic conversations', emoji: '💬' },
-      { value: 'B1', label: 'B1', description: 'Intermediate', emoji: '📈' },
-      { value: 'B2', label: 'B2', description: 'Upper intermediate', emoji: '⭐' },
-      { value: 'C1', label: 'C1', description: 'Advanced', emoji: '🔥' },
-      { value: 'C2', label: 'C2', description: 'Mastery', emoji: '🏆' },
-    ],
-  },
-  {
-    id: 'education_level',
-    type: 'choice',
-    question: 'What is your highest level of education?',
-    required: true,
-    options: [
-      { value: 'high_school', label: 'High School', emoji: '📚' },
-      { value: 'vocational', label: 'Vocational Training', emoji: '🛠️' },
-      { value: 'bachelor', label: "Bachelor's Degree", emoji: '🎓' },
-      { value: 'master', label: "Master's Degree", emoji: '📜' },
-      { value: 'phd', label: 'PhD', emoji: '🔬' },
-    ],
-  },
-  {
-    id: 'field_of_study',
-    type: 'text',
-    question: 'What is your field of study or profession?',
-    placeholder: 'e.g. Nursing, Software Engineering, Business...',
-    required: false,
-    hint: 'This helps us match you with the right opportunities.',
-  },
-  {
-    id: 'work_experience_years',
-    type: 'choice',
-    question: 'How many years of work experience do you have?',
-    required: true,
-    options: [
-      { value: '0', label: 'None yet', emoji: '🎒' },
-      { value: '1', label: '1–2 years', emoji: '📅' },
-      { value: '3', label: '3–5 years', emoji: '💪' },
-      { value: '5', label: '5+ years', emoji: '🚀' },
-    ],
-  },
-  {
-    id: 'timeline',
-    type: 'choice',
-    question: 'When do you want to be in Germany?',
-    required: true,
-    options: [
-      { value: '6_months', label: 'Within 6 months', description: 'I am ready to move fast', emoji: '⚡' },
-      { value: '1_year', label: 'Within 1 year', description: 'I have time to prepare properly', emoji: '📆' },
-      { value: '2_years_plus', label: 'In 2+ years', description: 'I am planning ahead', emoji: '🔭' },
-    ],
-  },
-  {
-    id: 'financial_situation',
-    type: 'choice',
-    question: 'What is your financial situation for the move?',
-    required: true,
-    hint: 'German student visa requires a blocked account of ~€11,000.',
-    options: [
-      {
-        value: 'I have savings to cover initial costs (10,000+ EUR)',
-        label: 'I have savings',
-        description: '10,000+ EUR available',
-        emoji: '💰',
-      },
-      {
-        value: 'I have some savings but need funded options',
-        label: 'Some savings',
-        description: 'Looking for scholarships or funding',
-        emoji: '🔍',
-      },
-      {
-        value: 'I need fully funded or paid pathways',
-        label: 'Need full funding',
-        description: 'Ausbildung salary or scholarships only',
-        emoji: '🙏',
-      },
-    ],
-  },
-  {
-    id: 'english_level',
-    type: 'choice',
-    question: 'One last thing — how is your English?',
-    required: false,
-    options: [
-      { value: 'Basic', label: 'Basic', emoji: '🌱' },
-      { value: 'Intermediate', label: 'Intermediate', emoji: '💬' },
-      { value: 'Advanced', label: 'Advanced', emoji: '⭐' },
-      { value: 'Fluent', label: 'Fluent', emoji: '🔥' },
-    ],
-  },
-]
-
-const loadingMessages = [
-  'Analysing your language profile...',
-  'Checking pathway requirements...',
-  'Calculating your readiness score...',
-  'Building your personalised roadmap...',
-  'Finding the best opportunities for you...',
-  'Almost ready...',
-]
-
 type Answers = Record<string, string>
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+
+function buildQuestions(f: ReturnType<typeof useLanguage>['t']['form']): Question[] {
+  return [
+    {
+      id: 'name',
+      type: 'text',
+      question: f.step1Q,
+      placeholder: 'Your full name',
+      required: true,
+      hint: f.step1Hint,
+    },
+    {
+      id: 'email',
+      type: 'email',
+      question: f.step2Q,
+      placeholder: 'your@email.com',
+      required: true,
+      hint: f.step2Hint,
+    },
+    {
+      id: 'country',
+      type: 'text',
+      question: f.step3Q,
+      placeholder: 'e.g. Colombia, Brazil, Mexico...',
+      required: true,
+      hint: null,
+    },
+    {
+      id: 'pathway',
+      type: 'choice',
+      question: f.pathwayQ,
+      required: true,
+      options: [
+        {
+          value: 'university',
+          label: 'Study at university',
+          description: "Bachelor's, Master's, or PhD programs",
+          emoji: '🎓',
+        },
+        {
+          value: 'ausbildung',
+          label: 'Ausbildung',
+          description: 'Vocational training · €700–1,200/month salary',
+          emoji: '🔧',
+        },
+        {
+          value: 'work_visa',
+          label: 'Work in Germany',
+          description: 'Skilled worker visa or Blue Card',
+          emoji: '💼',
+        },
+      ],
+    },
+    {
+      id: 'german_level',
+      type: 'choice',
+      question: f.germanQ,
+      required: true,
+      hint: f.germanHint,
+      options: [
+        { value: 'none', label: 'None', description: "I don't speak German yet", emoji: '😅' },
+        { value: 'A1', label: 'A1', description: 'Just started', emoji: '🌱' },
+        { value: 'A2', label: 'A2', description: 'Basic conversations', emoji: '💬' },
+        { value: 'B1', label: 'B1', description: 'Intermediate', emoji: '📈' },
+        { value: 'B2', label: 'B2', description: 'Upper intermediate', emoji: '⭐' },
+        { value: 'C1', label: 'C1', description: 'Advanced', emoji: '🔥' },
+        { value: 'C2', label: 'C2', description: 'Mastery', emoji: '🏆' },
+      ],
+    },
+    {
+      id: 'education_level',
+      type: 'choice',
+      question: f.educationQ,
+      required: true,
+      options: [
+        { value: 'high_school', label: 'High School', emoji: '📚' },
+        { value: 'vocational', label: 'Vocational Training', emoji: '🛠️' },
+        { value: 'bachelor', label: "Bachelor's Degree", emoji: '🎓' },
+        { value: 'master', label: "Master's Degree", emoji: '📜' },
+        { value: 'phd', label: 'PhD', emoji: '🔬' },
+      ],
+    },
+    {
+      id: 'field_of_study',
+      type: 'text',
+      question: f.fieldQ,
+      placeholder: 'e.g. Nursing, Software Engineering, Business...',
+      required: false,
+      hint: f.fieldHint,
+    },
+    {
+      id: 'work_experience_years',
+      type: 'choice',
+      question: f.experienceQ,
+      required: true,
+      options: [
+        { value: '0', label: 'None yet', emoji: '🎒' },
+        { value: '1', label: '1–2 years', emoji: '📅' },
+        { value: '3', label: '3–5 years', emoji: '💪' },
+        { value: '5', label: '5+ years', emoji: '🚀' },
+      ],
+    },
+    {
+      id: 'timeline',
+      type: 'choice',
+      question: f.timelineQ,
+      required: true,
+      options: [
+        { value: '6_months', label: 'Within 6 months', description: 'I am ready to move fast', emoji: '⚡' },
+        { value: '1_year', label: 'Within 1 year', description: 'I have time to prepare properly', emoji: '📆' },
+        { value: '2_years_plus', label: 'In 2+ years', description: 'I am planning ahead', emoji: '🔭' },
+      ],
+    },
+    {
+      id: 'financial_situation',
+      type: 'choice',
+      question: f.financialQ,
+      required: true,
+      hint: f.financialHint,
+      options: [
+        {
+          value: 'I have savings to cover initial costs (10,000+ EUR)',
+          label: 'I have savings',
+          description: '10,000+ EUR available',
+          emoji: '💰',
+        },
+        {
+          value: 'I have some savings but need funded options',
+          label: 'Some savings',
+          description: 'Looking for scholarships or funding',
+          emoji: '🔍',
+        },
+        {
+          value: 'I need fully funded or paid pathways',
+          label: 'Need full funding',
+          description: 'Ausbildung salary or scholarships only',
+          emoji: '🙏',
+        },
+      ],
+    },
+    {
+      id: 'english_level',
+      type: 'choice',
+      question: f.englishQ,
+      required: false,
+      options: [
+        { value: 'Basic', label: 'Basic', emoji: '🌱' },
+        { value: 'Intermediate', label: 'Intermediate', emoji: '💬' },
+        { value: 'Advanced', label: 'Advanced', emoji: '⭐' },
+        { value: 'Fluent', label: 'Fluent', emoji: '🔥' },
+      ],
+    },
+  ]
+}
 
 export default function DiagnosticPage() {
   const router = useRouter()
+  const { t } = useLanguage()
+  const f = t.form
+
+  const questions = buildQuestions(f)
+
+  const loadingMessages = [
+    f.loading1,
+    f.loading2,
+    f.loading3,
+    f.loading4,
+    f.loading5,
+    f.loading6,
+  ]
+
   const [currentQ, setCurrentQ] = useState(0)
   const [answers, setAnswers] = useState<Answers>({})
   const [textInput, setTextInput] = useState('')
@@ -210,7 +220,7 @@ export default function DiagnosticPage() {
       setLoadingMessageIndex((i) => (i + 1) % loadingMessages.length)
     }, 2500)
     return () => clearInterval(interval)
-  }, [isLoading])
+  }, [isLoading, loadingMessages.length])
 
   const advance = useCallback(
     (value?: string) => {
@@ -267,7 +277,7 @@ export default function DiagnosticPage() {
     }
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/diagnostic/`, {
+      const res = await fetch(`${API_URL}/api/diagnostic/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -277,6 +287,12 @@ export default function DiagnosticPage() {
         throw new Error(`HTTP ${res.status}: ${errBody}`)
       }
       const data = await res.json()
+      if (data.progress_token) {
+        sessionStorage.setItem(
+          `klar_progress_token_${data.diagnostic_id}`,
+          data.progress_token
+        )
+      }
       router.push(`/results/${data.diagnostic_id}`)
     } catch (err) {
       console.error('Submission error:', err)
@@ -323,7 +339,7 @@ export default function DiagnosticPage() {
           {loadingMessages[loadingMessageIndex]}
         </p>
         <p className="text-sm mt-3" style={{ color: '#6B7280' }}>
-          This usually takes 30–60 seconds
+          {f.loadingSub}
         </p>
 
         {error && (
@@ -342,7 +358,7 @@ export default function DiagnosticPage() {
               className="block mt-2 underline text-sm"
               style={{ color: '#EF4444' }}
             >
-              ← Go back
+              {f.backBtn}
             </button>
           </div>
         )}
@@ -355,7 +371,7 @@ export default function DiagnosticPage() {
 
   const getQuestionText = () => {
     if (currentQ === 4 && answers.name) {
-      return `How is ${answers.name.split(' ')[0]}'s German?`
+      return f.germanQPersonal.replace('{name}', answers.name.split(' ')[0])
     }
     return question.question
   }
@@ -378,6 +394,83 @@ export default function DiagnosticPage() {
           zIndex: 100,
         }}
       />
+
+      {process.env.NODE_ENV === 'development' && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '16px',
+            right: '16px',
+            zIndex: 100,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+          }}
+        >
+          <button
+            onClick={() => {
+              const demoAnswers = {
+                name: 'Sofia Ramirez',
+                email: 'sofia.demo@klar.app',
+                country: 'Brazil',
+                pathway: 'ausbildung',
+                german_level: 'B1',
+                education_level: 'bachelor',
+                field_of_study: 'Mechanical Engineering',
+                work_experience_years: '3',
+                timeline: '1_year',
+                financial_situation: 'I have some savings but need funded options',
+                english_level: 'Advanced',
+              }
+              setAnswers(demoAnswers)
+              setCurrentQ(questions.length - 1)
+            }}
+            style={{
+              background: 'rgba(139, 92, 246, 0.15)',
+              border: '1px solid rgba(139, 92, 246, 0.4)',
+              color: '#C4B5FD',
+              fontSize: '12px',
+              padding: '6px 14px',
+              borderRadius: '9999px',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            ⚡ Demo Fill
+          </button>
+          <button
+            onClick={() => {
+              const demoAnswers = {
+                name: 'Sofia Ramirez',
+                email: 'sofia.demo@klar.app',
+                country: 'Brazil',
+                pathway: 'ausbildung',
+                german_level: 'B1',
+                education_level: 'bachelor',
+                field_of_study: 'Mechanical Engineering',
+                work_experience_years: '3',
+                timeline: '1_year',
+                financial_situation: 'I have some savings but need funded options',
+                english_level: 'Advanced',
+              }
+              setAnswers(demoAnswers)
+              submit(demoAnswers)
+            }}
+            style={{
+              background: 'rgba(59, 130, 246, 0.15)',
+              border: '1px solid rgba(59, 130, 246, 0.4)',
+              color: '#93C5FD',
+              fontSize: '12px',
+              padding: '6px 14px',
+              borderRadius: '9999px',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            ⚡⚡ Demo Fill + Submit
+          </button>
+        </div>
+      )}
 
       <div style={{ width: '100%', maxWidth: '640px' }}>
         <div
@@ -436,8 +529,26 @@ export default function DiagnosticPage() {
                 onBlur={(e) => (e.target.style.borderBottomColor = '#1F2937')}
               />
               <style>{`input::placeholder { color: #4B5563; }`}</style>
+              {question.id === 'email' && textInput.includes('@') && textInput.includes('.') && (
+                <div style={{
+                  marginTop: '12px',
+                  padding: '10px 16px',
+                  background: 'rgba(13,148,136,0.1)',
+                  border: '1px solid rgba(13,148,136,0.25)',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  color: '#5EEAD4',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  maxWidth: '480px',
+                }}>
+                  <span>✓</span>
+                  <span>We&apos;ll send your results to <strong>{textInput}</strong></span>
+                </div>
+              )}
               <p className="mt-3 text-xs" style={{ color: '#6B7280' }}>
-                Press Enter ↵ to continue
+                {f.pressEnter}
               </p>
             </div>
           )}
@@ -510,6 +621,22 @@ export default function DiagnosticPage() {
             </div>
           )}
 
+          {/* Final email reminder */}
+          {isLastQuestion && answers.email && (
+            <div style={{
+              marginTop: '16px',
+              padding: '12px 16px',
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '8px',
+              fontSize: '13px',
+              color: '#9CA3AF',
+              maxWidth: '560px',
+            }}>
+              📧 Results will be sent to <strong style={{ color: '#F9FAFB' }}>{answers.email}</strong> once reviewed by our consultant.
+            </div>
+          )}
+
           {/* Navigation */}
           <div className="flex items-center justify-between mt-10" style={{ maxWidth: '560px' }}>
             {currentQ > 0 ? (
@@ -520,7 +647,7 @@ export default function DiagnosticPage() {
                 onMouseEnter={(e) => (e.currentTarget.style.color = '#F9FAFB')}
                 onMouseLeave={(e) => (e.currentTarget.style.color = '#9CA3AF')}
               >
-                ← Back
+                {f.backBtn}
               </button>
             ) : (
               <div />
@@ -543,7 +670,7 @@ export default function DiagnosticPage() {
                       maxWidth: '560px',
                     }}
                   >
-                    Get my Germany score →
+                    {f.submitBtn}
                   </button>
                 ) : (
                   <button
@@ -558,7 +685,7 @@ export default function DiagnosticPage() {
                       cursor: question.required && !textInput ? 'not-allowed' : 'pointer',
                     }}
                   >
-                    Continue →
+                    {f.continueBtn}
                   </button>
                 )}
               </>
@@ -578,7 +705,7 @@ export default function DiagnosticPage() {
                   cursor: !selectedValue ? 'not-allowed' : 'pointer',
                 }}
               >
-                Get my Germany score →
+                {f.submitBtn}
               </button>
             )}
           </div>
