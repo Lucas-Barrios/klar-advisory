@@ -4,6 +4,7 @@ import Link from 'next/link'
 import './globals.css'
 import { LanguageProvider } from '@/lib/LanguageContext'
 import LanguageToggle from './components/LanguageToggle'
+import GermanFlag from '@/components/GermanFlag'
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -42,13 +43,10 @@ export default function RootLayout({
                 className="font-bold text-xl"
                 style={{ color: '#F9FAFB', letterSpacing: '-0.02em' }}
               >
-                Klar 🇩🇪
+                Klar <GermanFlag size={20} />
               </Link>
               <div className="flex items-center gap-4">
                 <LanguageToggle />
-                <Link href="/admin" className="nav-admin text-sm">
-                  Admin
-                </Link>
               </div>
             </div>
           </nav>

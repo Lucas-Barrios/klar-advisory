@@ -2,17 +2,17 @@
 
 :root {
   --bg: #0A0E1A;
-  --bg2: #111827;
-  --bg3: #1F2937;
-  --blue: #3B82F6;
-  --blue-bright: #60A5FA;
-  --purple: #8B5CF6;
-  --teal: #0D9488;
-  --amber: #F59E0B;
-  --red: #EF4444;
-  --text: #F9FAFB;
-  --text2: #9CA3AF;
-  --text3: #6B7280;
+  --bg2: #0F141F;
+  --bg3: #1A2030;
+  --accent: #0D9488;
+  --accent-light: #14B8A6;
+  --accent-dim: rgba(13, 148, 136, 0.12);
+  --text: #F4F4F2;
+  --text2: #9C9B95;
+  --text3: #6B6A65;
+  --border: rgba(255, 255, 255, 0.08);
+  --red: #DC2626;
+  --amber: #D97706;
 }
 
 * {
@@ -27,25 +27,18 @@ body {
 }
 
 ::selection {
-  background: #3B82F6;
+  background: var(--accent);
   color: white;
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, #3B82F6, #8B5CF6);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--accent-light);
 }
 
 .glass {
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
   backdrop-filter: blur(12px);
-}
-
-.glow-blue {
-  box-shadow: 0 0 40px rgba(59, 130, 246, 0.15);
 }
 
 @keyframes countUp {
@@ -141,20 +134,18 @@ body {
 }
 
 .cta-button {
-  transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 .cta-button:hover {
   transform: scale(1.02);
-  filter: brightness(1.1);
-  box-shadow: 0 0 40px rgba(59, 130, 246, 0.4);
+  background: var(--accent-light) !important;
 }
 
 .feature-card {
-  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+  transition: border-color 0.3s ease;
 }
 .feature-card:hover {
-  box-shadow: 0 0 40px rgba(59, 130, 246, 0.15);
-  border-color: rgba(59, 130, 246, 0.2) !important;
+  border-color: var(--accent) !important;
 }
 
 .slide-in-right {
