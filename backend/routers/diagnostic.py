@@ -5,7 +5,6 @@ from database import get_supabase
 from pydantic import BaseModel, Field, field_validator
 from services.ai_observability import (
     persist_usage_event,
-    safe_error_type,
     usage_event_with_context,
 )
 from services.admin_auth import extract_bearer_token
@@ -327,35 +326,23 @@ def run_ausbildung_matching(diagnostic_id: str, student_data: dict) -> None:
 
 async def notify_n8n(diagnostic_id: str, name: str, email: str, pathway: str):
     webhook = os.getenv("N8N_WEBHOOK_URL")
+    print(f"[N8N DEBUG] notify_n8n called for diagnostic {diagnostic_id}")
+    print(f"[N8N DEBUG] webhook env var resolved to: {webhook!r}")
+
     if not webhook:
+        print(f"[N8N DEBUG] No webhook configured, returning early")
         return
+
+    print(f"[N8N DEBUG] Attempting webhook call to: {webhook}")
     try:
-        timeout = float(os.getenv("N8N_WEBHOOK_TIMEOUT_SECONDS", "10"))
-        async with httpx.AsyncClient(timeout=timeout) as c:
-            print(f"Attempting n8n webhook call to: {webhook}")
+        async with httpx.AsyncClient() as c:
             response = await c.post(webhook, json={
                 "diagnostic_id": diagnostic_id,
                 "student_name": name,
                 "student_email": email,
                 "pathway": pathway,
-                "review_url": f"{os.getenv('ADMIN_URL', 'http://localhost:3001')}/admin"
+                "review_url": os.getenv("ADMIN_URL", "http://localhost:3001") + "/admin"
             })
-            response.raise_for_status()
+            print(f"[N8N DEBUG] Webhook succeeded, status: {response.status_code}, body: {response.text[:200]}")
     except Exception as e:
-        print(f"=== N8N WEBHOOK FAILED ===")
-        print(f"Error: {e}")
-        print(f"Webhook URL configured: {os.getenv('N8N_WEBHOOK_URL')}")
-        print(f"===========================")
-        try:
-            supabase = get_supabase()
-            supabase.table("audit_log").insert({
-                "diagnostic_id": diagnostic_id,
-                "action": "n8n_webhook_failed",
-                "actor": "system",
-                "details": {
-                    "error_type": safe_error_type(e),
-                    "pathway": pathway,
-                }
-            }).execute()
-        except Exception as audit_e:
-            print(f"=== AUDIT LOG ALSO FAILED: {audit_e} ===")
+        print(f"[N8N DEBUG] Webhook FAILED: {type(e).__name__}: {e}")
