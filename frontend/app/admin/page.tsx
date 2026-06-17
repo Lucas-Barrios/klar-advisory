@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { Inbox, CheckCircle2, Gauge, Globe, Clock, Mail, Languages, GraduationCap } from 'lucide-react'
+import GermanFlag from '@/components/GermanFlag'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 const ADMIN_TOKEN_STORAGE_KEY = 'klar_admin_api_token'
@@ -173,14 +175,14 @@ function PathwayBadge({ pathway }: { pathway: string }) {
       label: 'Ausbildung',
     },
     university: {
-      bg: 'rgba(59,130,246,0.1)',
-      color: '#3B82F6',
-      border: 'rgba(59,130,246,0.2)',
+      bg: 'var(--accent-dim)',
+      color: 'var(--accent-light)',
+      border: 'rgba(13,148,136,0.2)',
       label: 'University',
     },
     work_visa: {
       bg: 'rgba(139,92,246,0.1)',
-      color: '#8B5CF6',
+      color: '#A78BFA',
       border: 'rgba(139,92,246,0.2)',
       label: 'Work Visa',
     },
@@ -282,7 +284,7 @@ function PasswordScreen({ onLogin }: { onLogin: (token: string) => Promise<boole
           marginBottom: '32px',
         }}
       >
-        Klar 🇩🇪
+        Klar <GermanFlag size={28} />
       </div>
 
       <div
@@ -328,7 +330,7 @@ function PasswordScreen({ onLogin }: { onLogin: (token: string) => Promise<boole
             width: '100%',
             outline: 'none',
           }}
-          onFocus={(e) => (e.target.style.borderBottomColor = '#3B82F6')}
+          onFocus={(e) => (e.target.style.borderBottomColor = 'var(--accent)')}
           onBlur={(e) =>
             (e.target.style.borderBottomColor = pwError ? '#EF4444' : '#1F2937')
           }
@@ -345,7 +347,7 @@ function PasswordScreen({ onLogin }: { onLogin: (token: string) => Promise<boole
           disabled={busy}
           className="cta-button"
           style={{
-            background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
+            background: 'var(--accent)',
             color: 'white',
             border: 'none',
             borderRadius: '12px',
@@ -484,9 +486,9 @@ function MatchedPositionsSection({
                       fontSize: '0.6875rem',
                       fontWeight: 500,
                       padding: '2px 8px',
-                      background: 'rgba(59,130,246,0.12)',
-                      color: '#60A5FA',
-                      border: '1px solid rgba(59,130,246,0.2)',
+                      background: 'var(--accent-dim)',
+                      color: 'var(--accent-light)',
+                      border: '1px solid rgba(13,148,136,0.2)',
                       whiteSpace: 'nowrap',
                     }}
                   >
@@ -533,7 +535,7 @@ function MatchedPositionsSection({
                     href={pos.application_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ fontSize: '0.75rem', color: '#3B82F6' }}
+                    style={{ fontSize: '0.75rem', color: 'var(--accent-light)' }}
                   >
                     View on BA →
                   </a>
@@ -644,8 +646,9 @@ function DetailsPanel({
             {row.students?.email}
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+            <Globe size={14} color="#9CA3AF" />
             <span style={{ fontSize: '0.875rem', color: '#9CA3AF' }}>
-              🌍 {row.students?.country}
+              {row.students?.country}
             </span>
             {row.students?.pathway && <PathwayBadge pathway={row.students.pathway} />}
           </div>
@@ -759,7 +762,7 @@ function DetailsPanel({
               resize: 'none',
               width: '100%',
             }}
-            onFocus={(e) => (e.target.style.borderColor = '#3B82F6')}
+            onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
             onBlur={(e) => (e.target.style.borderColor = '#1F2937')}
           />
         </div>
@@ -779,7 +782,7 @@ function DetailsPanel({
                   textAlign: 'center',
                 }}
               >
-                📅 Booked ✓
+                <CheckCircle2 size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />Booked ✓
               </div>
             ) : (
               <button
@@ -804,7 +807,7 @@ function DetailsPanel({
                   transition: 'filter 0.15s ease',
                 }}
                 onMouseEnter={(e) => {
-                  if (!bookingBusy) e.currentTarget.style.filter = 'brightness(1.15)'
+                  if (!bookingBusy) e.currentTarget.style.filter = 'brightness(1.12)'
                 }}
                 onMouseLeave={(e) => {
                   if (!bookingBusy) e.currentTarget.style.filter = 'brightness(1)'
@@ -847,7 +850,7 @@ function DetailsPanel({
               onClick={() => act(onApprove)}
               disabled={busy}
               style={{
-                background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
+                background: 'var(--accent)',
                 border: 'none',
                 borderRadius: '12px',
                 color: 'white',
@@ -857,13 +860,13 @@ function DetailsPanel({
                 cursor: busy ? 'not-allowed' : 'pointer',
                 opacity: busy ? 0.5 : 1,
                 minHeight: '44px',
-                transition: 'filter 0.15s ease',
+                transition: 'background 0.15s ease',
               }}
               onMouseEnter={(e) => {
-                if (!busy) e.currentTarget.style.filter = 'brightness(1.1)'
+                if (!busy) e.currentTarget.style.background = 'var(--accent-light)'
               }}
               onMouseLeave={(e) => {
-                if (!busy) e.currentTarget.style.filter = 'brightness(1)'
+                if (!busy) e.currentTarget.style.background = 'var(--accent)'
               }}
             >
               ✓ Approve
@@ -915,8 +918,8 @@ function DetailsPanel({
                         width: '32px',
                         height: '32px',
                         borderRadius: '9999px',
-                        background: 'rgba(59,130,246,0.15)',
-                        color: '#3B82F6',
+                        background: 'var(--accent-dim)',
+                        color: 'var(--accent-light)',
                         fontSize: '0.75rem',
                         fontWeight: 700,
                         display: 'flex',
@@ -977,7 +980,7 @@ function DiagnosticCard({
           <div
             style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}
           >
-            <span>🌍</span>
+            <Globe size={14} color="#9CA3AF" />
             <span style={{ fontSize: '0.875rem', color: '#9CA3AF' }}>{row.students?.country}</span>
             <span style={{ color: '#6B7280' }}>·</span>
             {row.students?.pathway && <PathwayBadge pathway={row.students.pathway} />}
@@ -1002,33 +1005,33 @@ function DiagnosticCard({
         {row.students?.german_level && (
           <span
             className="glass"
-            style={{ borderRadius: '9999px', padding: '4px 12px', fontSize: '0.75rem', color: '#9CA3AF' }}
+            style={{ borderRadius: '9999px', padding: '4px 12px', fontSize: '0.75rem', color: '#9CA3AF', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
           >
-            🗣️ {row.students.german_level}
+            <Languages size={14} /> {row.students.german_level}
           </span>
         )}
         {row.students?.education_level && (
           <span
             className="glass"
-            style={{ borderRadius: '9999px', padding: '4px 12px', fontSize: '0.75rem', color: '#9CA3AF' }}
+            style={{ borderRadius: '9999px', padding: '4px 12px', fontSize: '0.75rem', color: '#9CA3AF', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
           >
-            🎓 {row.students.education_level}
+            <GraduationCap size={14} /> {row.students.education_level}
           </span>
         )}
         {row.students?.timeline && (
           <span
             className="glass"
-            style={{ borderRadius: '9999px', padding: '4px 12px', fontSize: '0.75rem', color: '#9CA3AF' }}
+            style={{ borderRadius: '9999px', padding: '4px 12px', fontSize: '0.75rem', color: '#9CA3AF', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
           >
-            ⏱️ {row.students.timeline}
+            <Clock size={14} /> {row.students.timeline}
           </span>
         )}
         {row.students?.email && (
           <span
             className="glass"
-            style={{ borderRadius: '9999px', padding: '4px 12px', fontSize: '0.75rem', color: '#9CA3AF' }}
+            style={{ borderRadius: '9999px', padding: '4px 12px', fontSize: '0.75rem', color: '#9CA3AF', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
           >
-            📧 {row.students.email}
+            <Mail size={14} /> {row.students.email}
           </span>
         )}
       </div>
@@ -1114,7 +1117,7 @@ function DiagnosticCard({
         <button
           onClick={() => onApprove(row.id)}
           style={{
-            background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
+            background: 'var(--accent)',
             border: 'none',
             borderRadius: '9999px',
             color: 'white',
@@ -1123,10 +1126,10 @@ function DiagnosticCard({
             padding: '8px 20px',
             cursor: 'pointer',
             minHeight: '44px',
-            transition: 'filter 0.15s ease',
+            transition: 'background 0.15s ease',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.filter = 'brightness(1.1)')}
-          onMouseLeave={(e) => (e.currentTarget.style.filter = 'brightness(1)')}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-light)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
         >
           ✓ Approve
         </button>
@@ -1314,7 +1317,7 @@ export default function AdminPage() {
     if (res.ok) {
       setRows((prev) => prev.map((r) => r.id === id ? { ...r, consultation_booked: true } : r))
       setSelected((prev) => prev?.id === id ? { ...prev, consultation_booked: true } : prev)
-      setToast({ message: '📅 Booking recorded — conversion tracked', type: 'success' })
+      setToast({ message: 'Booking recorded — conversion tracked', type: 'success' })
       fetchStats()
     }
   }
@@ -1408,7 +1411,7 @@ export default function AdminPage() {
           }}
         >
           <div className="glass" style={{ borderRadius: '16px', padding: '20px' }}>
-            <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>📥</div>
+            <div style={{ marginBottom: '8px' }}><Inbox size={20} color="var(--accent-light)" /></div>
             <div className="gradient-text" style={{ fontSize: '1.875rem', fontWeight: 700 }}>
               {loadingRows ? '—' : String(stats.pending)}
             </div>
@@ -1418,7 +1421,7 @@ export default function AdminPage() {
           </div>
 
           <div className="glass" style={{ borderRadius: '16px', padding: '20px' }}>
-            <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>✅</div>
+            <div style={{ marginBottom: '8px' }}><CheckCircle2 size={20} color="var(--accent-light)" /></div>
             <div className="gradient-text" style={{ fontSize: '1.875rem', fontWeight: 700 }}>
               {loadingRows ? '—' : String(stats.approved_today)}
             </div>
@@ -1428,7 +1431,7 @@ export default function AdminPage() {
           </div>
 
           <div className="glass" style={{ borderRadius: '16px', padding: '20px' }}>
-            <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>⚡</div>
+            <div style={{ marginBottom: '8px' }}><Gauge size={20} color="var(--accent-light)" /></div>
             <div className="gradient-text" style={{ fontSize: '1.875rem', fontWeight: 700 }}>
               {loadingRows ? '—' : String(stats.total)}
             </div>
@@ -1441,7 +1444,7 @@ export default function AdminPage() {
           </div>
 
           <div className="glass" style={{ borderRadius: '16px', padding: '20px' }}>
-            <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>📅</div>
+            <div style={{ marginBottom: '8px' }}><Gauge size={20} color="var(--accent-light)" /></div>
             <div className="gradient-text" style={{ fontSize: '1.875rem', fontWeight: 700 }}>
               {loadingRows ? '—' : `${stats.conversion_rate}%`}
             </div>
@@ -1670,7 +1673,7 @@ export default function AdminPage() {
                 minHeight: '36px',
                 transition: 'all 0.15s ease',
                 background:
-                  activeFilter === f.key ? '#3B82F6' : 'rgba(255,255,255,0.04)',
+                  activeFilter === f.key ? 'var(--accent)' : 'rgba(255,255,255,0.04)',
                 color: activeFilter === f.key ? 'white' : '#9CA3AF',
                 border:
                   activeFilter === f.key

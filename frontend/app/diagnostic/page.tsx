@@ -3,6 +3,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/lib/LanguageContext'
+import {
+  GraduationCap, Wrench, Briefcase, BookOpen, Hammer, Award,
+  FlaskConical, Languages, Clock, Wallet, Mail,
+  LucideIcon,
+} from 'lucide-react'
+import GermanFlag from '@/components/GermanFlag'
+import LevelIndicator from '@/components/LevelIndicator'
 
 type QuestionType = 'text' | 'email' | 'choice'
 
@@ -10,7 +17,6 @@ type ChoiceOption = {
   value: string
   label: string
   description?: string
-  emoji: string
 }
 
 type Question = {
@@ -26,6 +32,45 @@ type Question = {
 type Answers = Record<string, string>
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+
+// Distinct icon per option for pathway
+const PATHWAY_ICONS: Record<string, LucideIcon> = {
+  university: GraduationCap,
+  ausbildung: Wrench,
+  work_visa: Briefcase,
+}
+
+// Distinct icon per option for education
+const EDUCATION_ICONS: Record<string, LucideIcon> = {
+  high_school: BookOpen,
+  vocational: Hammer,
+  bachelor: GraduationCap,
+  master: Award,
+  phd: FlaskConical,
+}
+
+// LevelIndicator config: filled segments out of total
+const GERMAN_LEVEL_FILLS: Record<string, number> = {
+  none: 1, A1: 2, A2: 3, B1: 4, B2: 5, C1: 6, C2: 7,
+}
+
+const WORK_EXP_FILLS: Record<string, number> = {
+  '0': 1, '1': 2, '3': 3, '5': 4,
+}
+
+const TIMELINE_FILLS: Record<string, number> = {
+  '6_months': 3, '1_year': 2, '2_years_plus': 1,
+}
+
+const FINANCIAL_FILLS: Record<string, number> = {
+  'I have savings to cover initial costs (10,000+ EUR)': 3,
+  'I have some savings but need funded options': 2,
+  'I need fully funded or paid pathways': 1,
+}
+
+const ENGLISH_FILLS: Record<string, number> = {
+  Basic: 1, Intermediate: 2, Advanced: 3, Fluent: 4,
+}
 
 function buildQuestions(f: ReturnType<typeof useLanguage>['t']['form']): Question[] {
   return [
@@ -59,24 +104,9 @@ function buildQuestions(f: ReturnType<typeof useLanguage>['t']['form']): Questio
       question: f.pathwayQ,
       required: true,
       options: [
-        {
-          value: 'university',
-          label: 'Study at university',
-          description: "Bachelor's, Master's, or PhD programs",
-          emoji: '🎓',
-        },
-        {
-          value: 'ausbildung',
-          label: 'Ausbildung',
-          description: 'Vocational training · €700–1,200/month salary',
-          emoji: '🔧',
-        },
-        {
-          value: 'work_visa',
-          label: 'Work in Germany',
-          description: 'Skilled worker visa or Blue Card',
-          emoji: '💼',
-        },
+        { value: 'university', label: 'Study at university', description: "Bachelor's, Master's, or PhD programs" },
+        { value: 'ausbildung', label: 'Ausbildung', description: 'Vocational training · €700–1,200/month salary' },
+        { value: 'work_visa', label: 'Work in Germany', description: 'Skilled worker visa or Blue Card' },
       ],
     },
     {
@@ -86,13 +116,13 @@ function buildQuestions(f: ReturnType<typeof useLanguage>['t']['form']): Questio
       required: true,
       hint: f.germanHint,
       options: [
-        { value: 'none', label: 'None', description: "I don't speak German yet", emoji: '😅' },
-        { value: 'A1', label: 'A1', description: 'Just started', emoji: '🌱' },
-        { value: 'A2', label: 'A2', description: 'Basic conversations', emoji: '💬' },
-        { value: 'B1', label: 'B1', description: 'Intermediate', emoji: '📈' },
-        { value: 'B2', label: 'B2', description: 'Upper intermediate', emoji: '⭐' },
-        { value: 'C1', label: 'C1', description: 'Advanced', emoji: '🔥' },
-        { value: 'C2', label: 'C2', description: 'Mastery', emoji: '🏆' },
+        { value: 'none', label: 'None', description: "I don't speak German yet" },
+        { value: 'A1', label: 'A1', description: 'Just started' },
+        { value: 'A2', label: 'A2', description: 'Basic conversations' },
+        { value: 'B1', label: 'B1', description: 'Intermediate' },
+        { value: 'B2', label: 'B2', description: 'Upper intermediate' },
+        { value: 'C1', label: 'C1', description: 'Advanced' },
+        { value: 'C2', label: 'C2', description: 'Mastery' },
       ],
     },
     {
@@ -101,11 +131,11 @@ function buildQuestions(f: ReturnType<typeof useLanguage>['t']['form']): Questio
       question: f.educationQ,
       required: true,
       options: [
-        { value: 'high_school', label: 'High School', emoji: '📚' },
-        { value: 'vocational', label: 'Vocational Training', emoji: '🛠️' },
-        { value: 'bachelor', label: "Bachelor's Degree", emoji: '🎓' },
-        { value: 'master', label: "Master's Degree", emoji: '📜' },
-        { value: 'phd', label: 'PhD', emoji: '🔬' },
+        { value: 'high_school', label: 'High School' },
+        { value: 'vocational', label: 'Vocational Training' },
+        { value: 'bachelor', label: "Bachelor's Degree" },
+        { value: 'master', label: "Master's Degree" },
+        { value: 'phd', label: 'PhD' },
       ],
     },
     {
@@ -122,10 +152,10 @@ function buildQuestions(f: ReturnType<typeof useLanguage>['t']['form']): Questio
       question: f.experienceQ,
       required: true,
       options: [
-        { value: '0', label: 'None yet', emoji: '🎒' },
-        { value: '1', label: '1–2 years', emoji: '📅' },
-        { value: '3', label: '3–5 years', emoji: '💪' },
-        { value: '5', label: '5+ years', emoji: '🚀' },
+        { value: '0', label: 'None yet' },
+        { value: '1', label: '1–2 years' },
+        { value: '3', label: '3–5 years' },
+        { value: '5', label: '5+ years' },
       ],
     },
     {
@@ -134,9 +164,9 @@ function buildQuestions(f: ReturnType<typeof useLanguage>['t']['form']): Questio
       question: f.timelineQ,
       required: true,
       options: [
-        { value: '6_months', label: 'Within 6 months', description: 'I am ready to move fast', emoji: '⚡' },
-        { value: '1_year', label: 'Within 1 year', description: 'I have time to prepare properly', emoji: '📆' },
-        { value: '2_years_plus', label: 'In 2+ years', description: 'I am planning ahead', emoji: '🔭' },
+        { value: '6_months', label: 'Within 6 months', description: 'I am ready to move fast' },
+        { value: '1_year', label: 'Within 1 year', description: 'I have time to prepare properly' },
+        { value: '2_years_plus', label: 'In 2+ years', description: 'I am planning ahead' },
       ],
     },
     {
@@ -146,24 +176,9 @@ function buildQuestions(f: ReturnType<typeof useLanguage>['t']['form']): Questio
       required: true,
       hint: f.financialHint,
       options: [
-        {
-          value: 'I have savings to cover initial costs (10,000+ EUR)',
-          label: 'I have savings',
-          description: '10,000+ EUR available',
-          emoji: '💰',
-        },
-        {
-          value: 'I have some savings but need funded options',
-          label: 'Some savings',
-          description: 'Looking for scholarships or funding',
-          emoji: '🔍',
-        },
-        {
-          value: 'I need fully funded or paid pathways',
-          label: 'Need full funding',
-          description: 'Ausbildung salary or scholarships only',
-          emoji: '🙏',
-        },
+        { value: 'I have savings to cover initial costs (10,000+ EUR)', label: 'I have savings', description: '10,000+ EUR available' },
+        { value: 'I have some savings but need funded options', label: 'Some savings', description: 'Looking for scholarships or funding' },
+        { value: 'I need fully funded or paid pathways', label: 'Need full funding', description: 'Ausbildung salary or scholarships only' },
       ],
     },
     {
@@ -172,13 +187,45 @@ function buildQuestions(f: ReturnType<typeof useLanguage>['t']['form']): Questio
       question: f.englishQ,
       required: false,
       options: [
-        { value: 'Basic', label: 'Basic', emoji: '🌱' },
-        { value: 'Intermediate', label: 'Intermediate', emoji: '💬' },
-        { value: 'Advanced', label: 'Advanced', emoji: '⭐' },
-        { value: 'Fluent', label: 'Fluent', emoji: '🔥' },
+        { value: 'Basic', label: 'Basic' },
+        { value: 'Intermediate', label: 'Intermediate' },
+        { value: 'Advanced', label: 'Advanced' },
+        { value: 'Fluent', label: 'Fluent' },
       ],
     },
   ]
+}
+
+function OptionIcon({ questionId, value }: { questionId: string; value: string }) {
+  if (questionId === 'pathway') {
+    const Icon = PATHWAY_ICONS[value]
+    return Icon ? <Icon size={24} color="var(--text2)" /> : null
+  }
+  if (questionId === 'education_level') {
+    const Icon = EDUCATION_ICONS[value]
+    return Icon ? <Icon size={24} color="var(--text2)" /> : null
+  }
+  if (questionId === 'german_level') {
+    const filled = GERMAN_LEVEL_FILLS[value] ?? 1
+    return <LevelIndicator icon={Languages} filled={filled} total={7} />
+  }
+  if (questionId === 'work_experience_years') {
+    const filled = WORK_EXP_FILLS[value] ?? 1
+    return <LevelIndicator icon={Briefcase} filled={filled} total={4} />
+  }
+  if (questionId === 'timeline') {
+    const filled = TIMELINE_FILLS[value] ?? 1
+    return <LevelIndicator icon={Clock} filled={filled} total={3} />
+  }
+  if (questionId === 'financial_situation') {
+    const filled = FINANCIAL_FILLS[value] ?? 1
+    return <LevelIndicator icon={Wallet} filled={filled} total={3} />
+  }
+  if (questionId === 'english_level') {
+    const filled = ENGLISH_FILLS[value] ?? 1
+    return <LevelIndicator icon={Languages} filled={filled} total={4} />
+  }
+  return null
 }
 
 export default function DiagnosticPage() {
@@ -189,12 +236,7 @@ export default function DiagnosticPage() {
   const questions = buildQuestions(f)
 
   const loadingMessages = [
-    f.loading1,
-    f.loading2,
-    f.loading3,
-    f.loading4,
-    f.loading5,
-    f.loading6,
+    f.loading1, f.loading2, f.loading3, f.loading4, f.loading5, f.loading6,
   ]
 
   const [currentQ, setCurrentQ] = useState(0)
@@ -307,18 +349,18 @@ export default function DiagnosticPage() {
         className="min-h-screen flex flex-col items-center justify-center px-4 text-center"
         style={{ background: '#0A0E1A' }}
       >
-        <div className="pulsing-logo font-bold text-3xl mb-8" style={{ letterSpacing: '-0.03em' }}>
-          Klar 🇩🇪
+        <div className="pulsing-logo font-bold text-3xl mb-8" style={{ letterSpacing: '-0.03em', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          Klar <GermanFlag size={28} />
         </div>
 
         <svg width="80" height="80" viewBox="0 0 80 80">
           <defs>
             <linearGradient id="spinGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#3B82F6" />
-              <stop offset="100%" stopColor="#8B5CF6" />
+              <stop offset="0%" stopColor="#14B8A6" />
+              <stop offset="100%" stopColor="#0D9488" />
             </linearGradient>
           </defs>
-          <circle cx="40" cy="40" r="34" fill="none" stroke="#1F2937" strokeWidth="6" />
+          <circle cx="40" cy="40" r="34" fill="none" stroke="#1A2030" strokeWidth="6" />
           <circle
             cx="40"
             cy="40"
@@ -346,9 +388,9 @@ export default function DiagnosticPage() {
           <div
             className="mt-6 rounded-xl p-4 text-sm"
             style={{
-              background: 'rgba(239,68,68,0.1)',
-              border: '1px solid rgba(239,68,68,0.3)',
-              color: '#EF4444',
+              background: 'rgba(220,38,38,0.1)',
+              border: '1px solid rgba(220,38,38,0.3)',
+              color: '#DC2626',
               maxWidth: '400px',
             }}
           >
@@ -356,7 +398,7 @@ export default function DiagnosticPage() {
             <button
               onClick={() => setIsLoading(false)}
               className="block mt-2 underline text-sm"
-              style={{ color: '#EF4444' }}
+              style={{ color: '#DC2626' }}
             >
               {f.backBtn}
             </button>
@@ -389,7 +431,7 @@ export default function DiagnosticPage() {
           left: 0,
           height: '3px',
           width: `${progressPct}%`,
-          background: 'linear-gradient(90deg, #3B82F6, #8B5CF6)',
+          background: 'var(--accent)',
           transition: 'width 0.4s ease',
           zIndex: 100,
         }}
@@ -426,9 +468,9 @@ export default function DiagnosticPage() {
               setCurrentQ(questions.length - 1)
             }}
             style={{
-              background: 'rgba(139, 92, 246, 0.15)',
-              border: '1px solid rgba(139, 92, 246, 0.4)',
-              color: '#C4B5FD',
+              background: 'var(--accent-dim)',
+              border: '1px solid rgba(13,148,136,0.4)',
+              color: 'var(--accent-light)',
               fontSize: '12px',
               padding: '6px 14px',
               borderRadius: '9999px',
@@ -436,7 +478,7 @@ export default function DiagnosticPage() {
               fontFamily: 'inherit',
             }}
           >
-            ⚡ Demo Fill
+            Demo Fill
           </button>
           <button
             onClick={() => {
@@ -457,9 +499,9 @@ export default function DiagnosticPage() {
               submit(demoAnswers)
             }}
             style={{
-              background: 'rgba(59, 130, 246, 0.15)',
-              border: '1px solid rgba(59, 130, 246, 0.4)',
-              color: '#93C5FD',
+              background: 'var(--accent-dim)',
+              border: '1px solid rgba(13,148,136,0.4)',
+              color: 'var(--accent-light)',
               fontSize: '12px',
               padding: '6px 14px',
               borderRadius: '9999px',
@@ -467,7 +509,7 @@ export default function DiagnosticPage() {
               fontFamily: 'inherit',
             }}
           >
-            ⚡⚡ Demo Fill + Submit
+            Demo Fill + Submit
           </button>
         </div>
       )}
@@ -515,7 +557,7 @@ export default function DiagnosticPage() {
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  borderBottom: '2px solid #1F2937',
+                  borderBottom: '2px solid #1A2030',
                   color: '#F9FAFB',
                   fontSize: '1.5rem',
                   padding: '12px 0',
@@ -525,15 +567,15 @@ export default function DiagnosticPage() {
                   letterSpacing: '-0.01em',
                   display: 'block',
                 }}
-                onFocus={(e) => (e.target.style.borderBottomColor = '#3B82F6')}
-                onBlur={(e) => (e.target.style.borderBottomColor = '#1F2937')}
+                onFocus={(e) => (e.target.style.borderBottomColor = 'var(--accent)')}
+                onBlur={(e) => (e.target.style.borderBottomColor = '#1A2030')}
               />
               <style>{`input::placeholder { color: #4B5563; }`}</style>
               {question.id === 'email' && textInput.includes('@') && textInput.includes('.') && (
                 <div style={{
                   marginTop: '12px',
                   padding: '10px 16px',
-                  background: 'rgba(13,148,136,0.1)',
+                  background: 'var(--accent-dim)',
                   border: '1px solid rgba(13,148,136,0.25)',
                   borderRadius: '8px',
                   fontSize: '13px',
@@ -573,10 +615,10 @@ export default function DiagnosticPage() {
                     style={{
                       padding: '16px',
                       border: isSelected
-                        ? '1px solid #3B82F6'
-                        : '1px solid rgba(255,255,255,0.08)',
+                        ? '1px solid var(--accent)'
+                        : '1px solid var(--border)',
                       background: isSelected
-                        ? 'rgba(59,130,246,0.12)'
+                        ? 'var(--accent-dim)'
                         : 'rgba(255,255,255,0.04)',
                       cursor: 'pointer',
                       display: 'flex',
@@ -587,19 +629,21 @@ export default function DiagnosticPage() {
                     onMouseEnter={(e) => {
                       if (!isSelected) {
                         const el = e.currentTarget as HTMLButtonElement
-                        el.style.borderColor = 'rgba(59,130,246,0.5)'
-                        el.style.background = 'rgba(59,130,246,0.08)'
+                        el.style.borderColor = 'rgba(13,148,136,0.5)'
+                        el.style.background = 'rgba(13,148,136,0.06)'
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (!isSelected) {
                         const el = e.currentTarget as HTMLButtonElement
-                        el.style.borderColor = 'rgba(255,255,255,0.08)'
+                        el.style.borderColor = 'var(--border)'
                         el.style.background = 'rgba(255,255,255,0.04)'
                       }
                     }}
                   >
-                    <span style={{ fontSize: '1.5rem', flexShrink: 0 }}>{opt.emoji}</span>
+                    <div style={{ flexShrink: 0 }}>
+                      <OptionIcon questionId={question.id} value={opt.value} />
+                    </div>
                     <div style={{ flex: 1 }}>
                       <div className="font-semibold" style={{ color: '#F9FAFB' }}>
                         {opt.label}
@@ -611,7 +655,7 @@ export default function DiagnosticPage() {
                       )}
                     </div>
                     {isSelected && (
-                      <span className="text-sm font-bold" style={{ color: '#3B82F6', flexShrink: 0 }}>
+                      <span className="text-sm font-bold" style={{ color: 'var(--accent)', flexShrink: 0 }}>
                         ✓
                       </span>
                     )}
@@ -627,13 +671,17 @@ export default function DiagnosticPage() {
               marginTop: '16px',
               padding: '12px 16px',
               background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              border: '1px solid var(--border)',
               borderRadius: '8px',
               fontSize: '13px',
               color: '#9CA3AF',
               maxWidth: '560px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
             }}>
-              📧 Results will be sent to <strong style={{ color: '#F9FAFB' }}>{answers.email}</strong> once reviewed by our consultant.
+              <Mail size={14} color="#9CA3AF" />
+              <span>Results will be sent to <strong style={{ color: '#F9FAFB' }}>{answers.email}</strong> once reviewed by our consultant.</span>
             </div>
           )}
 
@@ -661,14 +709,17 @@ export default function DiagnosticPage() {
                     disabled={question.required && !textInput}
                     className="w-full font-semibold rounded-xl transition-all"
                     style={{
-                      background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
+                      background: 'var(--accent)',
                       color: 'white',
                       padding: '16px',
                       fontSize: '1.125rem',
+                      border: 'none',
                       opacity: question.required && !textInput ? 0.4 : 1,
                       cursor: question.required && !textInput ? 'not-allowed' : 'pointer',
                       maxWidth: '560px',
                     }}
+                    onMouseEnter={(e) => { if (!(question.required && !textInput)) (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-light)' }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent)' }}
                   >
                     {f.submitBtn}
                   </button>
@@ -679,8 +730,8 @@ export default function DiagnosticPage() {
                     className="glass rounded-xl text-sm font-semibold transition-all"
                     style={{
                       padding: '10px 20px',
-                      border: '1px solid rgba(59,130,246,0.4)',
-                      color: '#3B82F6',
+                      border: '1px solid rgba(13,148,136,0.4)',
+                      color: 'var(--accent-light)',
                       opacity: question.required && !textInput ? 0.4 : 1,
                       cursor: question.required && !textInput ? 'not-allowed' : 'pointer',
                     }}
@@ -697,13 +748,16 @@ export default function DiagnosticPage() {
                 disabled={!selectedValue}
                 className="font-semibold rounded-xl transition-all"
                 style={{
-                  background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
+                  background: 'var(--accent)',
                   color: 'white',
                   padding: '14px 28px',
                   fontSize: '1rem',
+                  border: 'none',
                   opacity: !selectedValue ? 0.4 : 1,
                   cursor: !selectedValue ? 'not-allowed' : 'pointer',
                 }}
+                onMouseEnter={(e) => { if (selectedValue) (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-light)' }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent)' }}
               >
                 {f.submitBtn}
               </button>
@@ -714,9 +768,9 @@ export default function DiagnosticPage() {
             <div
               className="mt-6 rounded-xl p-4 text-sm"
               style={{
-                background: 'rgba(239,68,68,0.1)',
-                border: '1px solid rgba(239,68,68,0.3)',
-                color: '#EF4444',
+                background: 'rgba(220,38,38,0.1)',
+                border: '1px solid rgba(220,38,38,0.3)',
+                color: '#DC2626',
                 maxWidth: '560px',
               }}
             >

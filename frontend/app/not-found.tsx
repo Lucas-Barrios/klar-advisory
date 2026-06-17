@@ -30,7 +30,7 @@ export default function NotFound() {
         This page does not exist — but Germany does.
       </p>
       <Link href="/" style={{
-        background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
+        background: 'var(--accent)',
         color: 'white',
         padding: '12px 28px',
         borderRadius: '9999px',

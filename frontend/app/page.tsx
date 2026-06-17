@@ -25,30 +25,14 @@ export default function HomePage() {
         className="relative flex flex-col items-center justify-center text-center px-6 overflow-hidden"
         style={{ minHeight: '100vh' }}
       >
-        {/* Background blob */}
-        <div
-          aria-hidden
-          style={{
-            position: 'absolute',
-            top: '20%',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: '600px',
-            height: '600px',
-            background: 'radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 70%)',
-            pointerEvents: 'none',
-            zIndex: 0,
-          }}
-        />
-
         <div style={{ position: 'relative', zIndex: 1 }} className="flex flex-col items-center">
           {/* Pill badge */}
           <div
             className="inline-flex items-center rounded-full text-sm px-4 mb-8"
             style={{
-              background: 'rgba(59,130,246,0.1)',
-              border: '1px solid rgba(59,130,246,0.3)',
-              color: '#60A5FA',
+              background: 'var(--accent-dim)',
+              border: '1px solid rgba(13,148,136,0.3)',
+              color: 'var(--accent-light)',
               paddingTop: '6px',
               paddingBottom: '6px',
             }}
@@ -71,7 +55,7 @@ export default function HomePage() {
             <br />
             {l.headline2}
             <br />
-            <span className="gradient-text">{l.headline3}</span>
+            <span style={{ color: 'var(--accent-light)' }}>{l.headline3}</span>
           </h1>
 
           {/* Subheadline */}
@@ -92,7 +76,7 @@ export default function HomePage() {
             href="/diagnostic"
             className="cta-button inline-block mt-10 font-semibold"
             style={{
-              background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
+              background: 'var(--accent)',
               color: 'white',
               padding: '16px 32px',
               borderRadius: '9999px',
@@ -150,7 +134,7 @@ export default function HomePage() {
             <div
               key={num}
               className="feature-card glass rounded-2xl cursor-default"
-              style={{ padding: '32px' }}
+              style={{ padding: '32px', border: '1px solid var(--border)' }}
             >
               <div className="gradient-text font-bold" style={{ fontSize: '3rem', letterSpacing: '-0.03em' }}>
                 {num}

@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useLanguage } from '@/lib/LanguageContext'
+import { Link as LinkIcon } from 'lucide-react'
 
 export default function CopyLinkButton({ id }: { id: string }) {
   const [copied, setCopied] = useState(false)
@@ -28,7 +29,10 @@ export default function CopyLinkButton({ id }: { id: string }) {
         transition: 'all 0.2s',
       }}
     >
-      {copied ? `✓ ${t.results.copied}` : `🔗 ${t.results.copyLink}`}
+      {copied
+        ? `✓ ${t.results.copied}`
+        : <><LinkIcon size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />{t.results.copyLink}</>
+      }
     </button>
   )
 }

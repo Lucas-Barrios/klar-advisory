@@ -1,6 +1,7 @@
 'use client'
 import { useEffect } from 'react'
 import Link from 'next/link'
+import { Zap } from 'lucide-react'
 
 export default function Error({
   error,
@@ -24,7 +25,7 @@ export default function Error({
       textAlign: 'center',
       padding: '24px'
     }}>
-      <div style={{ fontSize: '64px', marginBottom: '16px' }}>⚡</div>
+      <div style={{ marginBottom: '16px' }}><Zap size={64} color="#D97706" /></div>
       <h1 style={{
         fontSize: '32px',
         fontWeight: 700,
@@ -58,7 +59,7 @@ export default function Error({
           Try again
         </button>
         <Link href="/" style={{
-          background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
+          background: 'var(--accent)',
           color: 'white',
           padding: '10px 24px',
           borderRadius: '9999px',

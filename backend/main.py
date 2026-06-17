@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import diagnostic, admin
+from routers import diagnostic, admin, payments
 
 app = FastAPI(title="Klar API", version="1.0.0")
 
@@ -18,6 +18,7 @@ app.add_middleware(
 
 app.include_router(diagnostic.router, prefix="/api/diagnostic", tags=["diagnostic"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
 
 @app.get("/health")
 def health():

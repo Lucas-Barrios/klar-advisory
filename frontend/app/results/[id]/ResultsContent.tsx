@@ -5,6 +5,7 @@ import CopyLinkButton from './CopyLinkButton'
 import { ShareButton } from './ShareButton'
 import DownloadPdfButton from './DownloadPdfButton'
 import DocumentFactoryClient from './DocumentFactoryClient'
+import { Dumbbell, TrendingUp, Star, Rocket, ClipboardList, Target } from 'lucide-react'
 
 type RoadmapStep = {
   month: number
@@ -39,6 +40,8 @@ export type Diagnostic = {
   roadmap: RoadmapStep[] | null
   recommendations: Recommendation[] | null
   completed_steps: number[] | null
+  matches_unlocked?: boolean
+  documents_unlocked?: boolean
   student?: {
     name?: string | null
   } | null
@@ -66,23 +69,28 @@ function scoreColor(score: number): string {
   return '#0D9488'
 }
 
-function scoreLabel(score: number): { label: string; emoji: string; sub: string } {
-  if (score < 40)
-    return { label: 'Not ready yet', emoji: '💪', sub: "But don't worry — your roadmap starts here." }
-  if (score < 60)
-    return { label: 'Getting there', emoji: '📈', sub: "You're closer than you think." }
-  if (score < 80)
-    return { label: 'Ready with preparation', emoji: '⭐', sub: 'You have a strong foundation.' }
-  return { label: 'Strong candidate', emoji: '🚀', sub: 'Germany is within reach.' }
+function ScoreTierIcon({ score }: { score: number }) {
+  const color = scoreColor(score)
+  if (score < 40) return <Dumbbell size={28} color={color} />
+  if (score < 60) return <TrendingUp size={28} color={color} />
+  if (score < 80) return <Star size={28} color={color} />
+  return <Rocket size={28} color={color} />
 }
 
-const DIMENSIONS: { key: keyof DimensionScores; label: string; icon: string }[] = [
-  { key: 'language', label: 'German Language', icon: '🗣️' },
-  { key: 'education', label: 'Education', icon: '🎓' },
-  { key: 'pathway_fit', label: 'Pathway Fit', icon: '🎯' },
-  { key: 'timeline', label: 'Timeline', icon: '⏱️' },
-  { key: 'financial', label: 'Finances', icon: '💰' },
-  { key: 'documentation', label: 'Documentation', icon: '📋' },
+function scoreLabel(score: number): { label: string; sub: string } {
+  if (score < 40) return { label: 'Not ready yet', sub: "But don't worry — your roadmap starts here." }
+  if (score < 60) return { label: 'Getting there', sub: "You're closer than you think." }
+  if (score < 80) return { label: 'Ready with preparation', sub: 'You have a strong foundation.' }
+  return { label: 'Strong candidate', sub: 'Germany is within reach.' }
+}
+
+const DIMENSIONS: { key: keyof DimensionScores; label: string }[] = [
+  { key: 'language', label: 'German Language' },
+  { key: 'education', label: 'Education' },
+  { key: 'pathway_fit', label: 'Pathway Fit' },
+  { key: 'timeline', label: 'Timeline' },
+  { key: 'financial', label: 'Finances' },
+  { key: 'documentation', label: 'Documentation' },
 ]
 
 export default function ResultsContent({
@@ -109,7 +117,9 @@ export default function ResultsContent({
         textAlign: 'center',
         padding: '24px'
       }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</div>
+        <div style={{ marginBottom: '16px' }}>
+          <Rocket size={48} color="#6B7280" />
+        </div>
         <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#F9FAFB', margin: 0 }}>
           Diagnostic not found
         </h2>
@@ -126,7 +136,7 @@ export default function ResultsContent({
           ID: {id}
         </p>
         <a href="/diagnostic" style={{
-          background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
+          background: 'var(--accent)',
           color: 'white',
           padding: '12px 28px',
           borderRadius: '9999px',
@@ -153,11 +163,11 @@ export default function ResultsContent({
               width: '80px',
               height: '80px',
               borderRadius: '9999px',
-              background: 'rgba(59,130,246,0.1)',
-              border: '1px solid rgba(59,130,246,0.3)',
+              background: 'var(--accent-dim)',
+              border: '1px solid rgba(13,148,136,0.3)',
             }}
           >
-            <span style={{ color: '#3B82F6', fontSize: '1.875rem' }}>✓</span>
+            <span style={{ color: 'var(--accent)', fontSize: '1.875rem' }}>✓</span>
           </div>
 
           <h1
@@ -217,11 +227,11 @@ export default function ResultsContent({
               width: '80px',
               height: '80px',
               borderRadius: '9999px',
-              background: 'rgba(245,158,11,0.1)',
-              border: '1px solid rgba(245,158,11,0.3)',
+              background: 'rgba(217,119,6,0.1)',
+              border: '1px solid rgba(217,119,6,0.3)',
             }}
           >
-            <span style={{ color: '#F59E0B', fontSize: '1.875rem' }}>!</span>
+            <span style={{ color: '#D97706', fontSize: '1.875rem' }}>!</span>
           </div>
 
           <h1
@@ -256,7 +266,7 @@ export default function ResultsContent({
 
   const score = diagnostic.overall_score ?? 0
   const dims = diagnostic.dimension_scores
-  const { label, emoji, sub } = scoreLabel(score)
+  const { label, sub } = scoreLabel(score)
   const color = scoreColor(score)
   const displayName = studentDisplayName(diagnostic)
 
@@ -277,11 +287,11 @@ export default function ResultsContent({
             <svg width="180" height="180" viewBox="0 0 120 120">
               <defs>
                 <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#3B82F6" />
-                  <stop offset="100%" stopColor="#8B5CF6" />
+                  <stop offset="0%" stopColor="#14B8A6" />
+                  <stop offset="100%" stopColor="#0D9488" />
                 </linearGradient>
               </defs>
-              <circle cx="60" cy="60" r="54" fill="none" stroke="#1F2937" strokeWidth="8" />
+              <circle cx="60" cy="60" r="54" fill="none" stroke="#1A2030" strokeWidth="8" />
               <circle
                 cx="60"
                 cy="60"
@@ -321,7 +331,9 @@ export default function ResultsContent({
           </div>
 
           <div className="mt-4 animate-fade-up delay-2">
-            <span className="text-2xl">{emoji}</span>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
+              <ScoreTierIcon score={score} />
+            </div>
             <p className="font-bold text-2xl mt-2" style={{ color, letterSpacing: '-0.02em' }}>
               {label}
             </p>
@@ -346,8 +358,10 @@ export default function ResultsContent({
             <a
               href={`/tracker/${id}`}
               style={{
-                display: 'inline-block',
-                background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'var(--accent)',
                 color: 'white',
                 padding: '12px 28px',
                 borderRadius: '9999px',
@@ -356,16 +370,18 @@ export default function ResultsContent({
                 fontSize: '14px',
               }}
             >
-              📋 Open My Tracker →
+              <ClipboardList size={18} /> Open my tracker →
             </a>
             {diagnostic.students?.pathway === 'ausbildung' && (
               <a
                 href={`/matches/${id}`}
                 style={{
-                  display: 'inline-block',
-                  background: 'rgba(245,158,11,0.12)',
-                  border: '1px solid rgba(245,158,11,0.35)',
-                  color: '#F59E0B',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'rgba(217,119,6,0.12)',
+                  border: '1px solid rgba(217,119,6,0.35)',
+                  color: '#D97706',
                   padding: '12px 28px',
                   borderRadius: '9999px',
                   fontWeight: 600,
@@ -373,12 +389,12 @@ export default function ResultsContent({
                   fontSize: '14px',
                 }}
               >
-                🎯 View Matched Positions →
+                <Target size={18} /> View matched positions →
               </a>
             )}
           </div>
 
-          <DocumentFactoryClient diagnosticId={id} />
+          <DocumentFactoryClient diagnosticId={id} documentsUnlocked={diagnostic.documents_unlocked ?? false} />
         </div>
 
         {/* Section 2 — Dimension scores */}
@@ -392,23 +408,17 @@ export default function ResultsContent({
             </h2>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {DIMENSIONS.map(({ key, label: dimLabel, icon }, index) => {
+              {DIMENSIONS.map(({ key, label: dimLabel }, index) => {
                 const val = dims[key] ?? 0
                 const c = scoreColor(val)
                 const delayClass = `delay-${index + 1}` as
-                  | 'delay-1'
-                  | 'delay-2'
-                  | 'delay-3'
-                  | 'delay-4'
-                  | 'delay-5'
-                  | 'delay-6'
+                  | 'delay-1' | 'delay-2' | 'delay-3' | 'delay-4' | 'delay-5' | 'delay-6'
                 return (
                   <div
                     key={key}
                     className={`glass rounded-2xl animate-fade-up ${delayClass}`}
                     style={{ padding: '24px' }}
                   >
-                    <span style={{ fontSize: '1.5rem' }}>{icon}</span>
                     <div
                       className="font-bold mt-2"
                       style={{ fontSize: '1.875rem', color: c }}
@@ -420,7 +430,7 @@ export default function ResultsContent({
                     </div>
                     <div
                       className="rounded-full overflow-hidden mt-3"
-                      style={{ height: '6px', background: '#1F2937' }}
+                      style={{ height: '6px', background: '#1A2030' }}
                     >
                       <div
                         style={
@@ -463,7 +473,6 @@ export default function ResultsContent({
                   className={`animate-fade-up delay-${Math.min(i + 1, 8) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8}`}
                   style={{ position: 'relative', paddingLeft: '48px', paddingBottom: '32px' }}
                 >
-                  {/* Vertical line */}
                   {i < (diagnostic.roadmap?.length ?? 0) - 1 && (
                     <div
                       style={{
@@ -472,12 +481,11 @@ export default function ResultsContent({
                         top: '28px',
                         bottom: 0,
                         width: '2px',
-                        background: '#1F2937',
+                        background: '#1A2030',
                       }}
                     />
                   )}
 
-                  {/* Circle */}
                   <div
                     className="flex items-center justify-center font-bold"
                     style={{
@@ -487,7 +495,7 @@ export default function ResultsContent({
                       width: '24px',
                       height: '24px',
                       borderRadius: '9999px',
-                      background: '#3B82F6',
+                      background: 'var(--accent)',
                       color: 'white',
                       fontSize: '0.65rem',
                     }}
@@ -495,7 +503,6 @@ export default function ResultsContent({
                     {step.month}
                   </div>
 
-                  {/* Card */}
                   <div className="glass rounded-xl" style={{ padding: '20px' }}>
                     <div
                       className="uppercase tracking-wider"
@@ -528,7 +535,7 @@ export default function ResultsContent({
                                 width: '6px',
                                 height: '6px',
                                 borderRadius: '9999px',
-                                background: '#3B82F6',
+                                background: 'var(--accent)',
                                 marginTop: '6px',
                                 flexShrink: 0,
                               }}
@@ -564,9 +571,9 @@ export default function ResultsContent({
                   <span
                     className="rounded-full text-xs font-medium inline-block self-start mb-4"
                     style={{
-                      background: 'rgba(59,130,246,0.1)',
-                      color: '#3B82F6',
-                      border: '1px solid rgba(59,130,246,0.2)',
+                      background: 'var(--accent-dim)',
+                      color: 'var(--accent-light)',
+                      border: '1px solid rgba(13,148,136,0.2)',
                       padding: '3px 12px',
                     }}
                   >
@@ -587,7 +594,7 @@ export default function ResultsContent({
                       target="_blank"
                       rel="noopener noreferrer"
                       className="mt-4 block text-sm hover:underline"
-                      style={{ color: '#3B82F6' }}
+                      style={{ color: 'var(--accent-light)' }}
                     >
                       Visit →
                     </a>
@@ -618,11 +625,12 @@ export default function ResultsContent({
               href="https://cal.com/lucas-barrios-qlrx5k/free-15-min-germany-pathway-consultation"
               target="_blank"
               rel="noopener noreferrer"
-              className="font-semibold rounded-full transition-all"
+              className="font-semibold rounded-full transition-all cta-button"
               style={{
-                background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
+                background: 'var(--accent)',
                 color: 'white',
                 padding: '12px 24px',
+                textDecoration: 'none',
               }}
             >
               {r.bookBtn}

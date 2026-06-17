@@ -33,10 +33,17 @@ type MatchesResult = {
   }[]
   reasoning_summary: string | null
   status: string
+  matches_unlocked?: boolean
+  locked_count?: number
 }
 
-export default async function MatchesPage(props: { params: Promise<{ id: string }> }) {
+export default async function MatchesPage(props: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<Record<string, string>>
+}) {
   const { id } = await props.params
+  const searchParams = await props.searchParams
+  const paymentSuccess = searchParams.payment === 'success'
 
   const [diagnostic, matches] = await Promise.all([
     fetchJson<DiagnosticResult>(`${API_URL}/api/diagnostic/${id}/result`),
@@ -86,6 +93,7 @@ export default async function MatchesPage(props: { params: Promise<{ id: string 
       id={id}
       studentName={studentName}
       matches={matches}
+      paymentSuccess={paymentSuccess}
     />
   )
 }

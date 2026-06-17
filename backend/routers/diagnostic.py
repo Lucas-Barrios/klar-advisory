@@ -185,6 +185,8 @@ def public_diagnostic_result(record: dict) -> dict:
         "roadmap": record.get("roadmap"),
         "recommendations": record.get("recommendations"),
         "completed_steps": record.get("completed_steps") or [],
+        "matches_unlocked": record.get("matches_unlocked", False),
+        "documents_unlocked": record.get("documents_unlocked", False),
         "student": {
             "name": display_name,
         },
@@ -216,7 +218,7 @@ def get_public_matches(diagnostic_id: str):
     supabase = get_supabase()
     try:
         diagnostic = supabase.table("diagnostics").select(
-            "id, status"
+            "id, status, matches_unlocked"
         ).eq("id", diagnostic_id).single().execute()
     except Exception as e:
         raise HTTPException(status_code=404, detail="Diagnostic not found") from e
@@ -227,7 +229,23 @@ def get_public_matches(diagnostic_id: str):
     result = supabase.table("ausbildung_matches").select("*").eq(
         "diagnostic_id", diagnostic_id
     ).execute()
-    return result.data[0] if result.data else None
+
+    if not result.data:
+        return None
+
+    match_data = result.data[0]
+    all_positions = match_data.get("matched_positions") or []
+
+    if diagnostic.data.get("matches_unlocked"):
+        return {**match_data, "matches_unlocked": True, "locked_count": 0}
+
+    locked_count = max(0, len(all_positions) - 1)
+    return {
+        **match_data,
+        "matched_positions": all_positions[:1],
+        "locked_count": locked_count,
+        "matches_unlocked": False,
+    }
 
 
 class ProgressUpdate(BaseModel):
@@ -295,6 +313,9 @@ def generate_documents_endpoint(diagnostic_id: str):
         ).eq("id", diagnostic_id).single().execute()
     except Exception as e:
         raise HTTPException(status_code=404, detail="Diagnostic not found") from e
+
+    if not (diagnostic.data or {}).get("documents_unlocked"):
+        raise HTTPException(status_code=402, detail="Payment required to generate documents")
 
     student_data = (diagnostic.data or {}).get("students") or {}
 

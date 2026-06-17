@@ -119,7 +119,7 @@ export default function TrackerClient({
               Overall Progress
             </span>
             <span style={{
-              color: progressPct === 100 ? '#0D9488' : '#3B82F6',
+              color: 'var(--accent-light)',
               fontWeight: 700,
             }}>
               {progressPct}%
@@ -134,9 +134,7 @@ export default function TrackerClient({
             <div style={{
               height: '100%',
               width: `${progressPct}%`,
-              background: progressPct === 100
-                ? 'linear-gradient(90deg, #0D9488, #14B8A6)'
-                : 'linear-gradient(90deg, #3B82F6, #8B5CF6)',
+              background: 'var(--accent)',
               borderRadius: '9999px',
               transition: 'width 0.4s ease',
             }} />
@@ -243,7 +241,7 @@ export default function TrackerClient({
                           width: '5px',
                           height: '5px',
                           borderRadius: '50%',
-                          background: '#3B82F6',
+                          background: 'var(--accent)',
                           marginTop: '6px',
                           flexShrink: 0,
                         }} />

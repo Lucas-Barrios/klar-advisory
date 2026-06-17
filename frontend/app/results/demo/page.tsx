@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { ShareButton } from '../[id]/ShareButton'
+import { Dumbbell, TrendingUp, Star, Rocket } from 'lucide-react'
 
 type RoadmapStep = {
   month: number
@@ -31,23 +32,28 @@ function scoreColor(score: number): string {
   return '#0D9488'
 }
 
-function scoreLabel(score: number): { label: string; emoji: string; sub: string } {
-  if (score < 40)
-    return { label: 'Not ready yet', emoji: '💪', sub: "But don't worry — your roadmap starts here." }
-  if (score < 60)
-    return { label: 'Getting there', emoji: '📈', sub: "You're closer than you think." }
-  if (score < 80)
-    return { label: 'Ready with preparation', emoji: '⭐', sub: 'You have a strong foundation.' }
-  return { label: 'Strong candidate', emoji: '🚀', sub: 'Germany is within reach.' }
+function scoreLabel(score: number): { label: string; sub: string } {
+  if (score < 40) return { label: 'Not ready yet', sub: "But don't worry — your roadmap starts here." }
+  if (score < 60) return { label: 'Getting there', sub: "You're closer than you think." }
+  if (score < 80) return { label: 'Ready with preparation', sub: 'You have a strong foundation.' }
+  return { label: 'Strong candidate', sub: 'Germany is within reach.' }
 }
 
-const DIMENSIONS: { key: keyof DimensionScores; label: string; icon: string }[] = [
-  { key: 'language', label: 'German Language', icon: '🗣️' },
-  { key: 'education', label: 'Education', icon: '🎓' },
-  { key: 'pathway_fit', label: 'Pathway Fit', icon: '🎯' },
-  { key: 'timeline', label: 'Timeline', icon: '⏱️' },
-  { key: 'financial', label: 'Finances', icon: '💰' },
-  { key: 'documentation', label: 'Documentation', icon: '📋' },
+function ScoreTierIcon({ score }: { score: number }) {
+  const color = scoreColor(score)
+  if (score < 40) return <Dumbbell size={28} color={color} />
+  if (score < 60) return <TrendingUp size={28} color={color} />
+  if (score < 80) return <Star size={28} color={color} />
+  return <Rocket size={28} color={color} />
+}
+
+const DIMENSIONS: { key: keyof DimensionScores; label: string }[] = [
+  { key: 'language', label: 'German Language' },
+  { key: 'education', label: 'Education' },
+  { key: 'pathway_fit', label: 'Pathway Fit' },
+  { key: 'timeline', label: 'Timeline' },
+  { key: 'financial', label: 'Finances' },
+  { key: 'documentation', label: 'Documentation' },
 ]
 
 const demoStudent = {
@@ -182,7 +188,7 @@ const demoRecommendations: Recommendation[] = [
 
 const score = 68
 const dims = demoDimensionScores
-const { label, emoji, sub } = scoreLabel(score)
+const { label, sub } = scoreLabel(score)
 const color = scoreColor(score)
 const circumference = 2 * Math.PI * 54
 const dashOffset = circumference * (1 - score / 100)
@@ -192,18 +198,18 @@ export default function DemoResultsPage() {
     <div style={{ background: '#0A0E1A', minHeight: '100vh' }}>
       {/* Demo banner */}
       <div style={{
-        background: 'rgba(245,158,11,0.1)',
-        borderBottom: '1px solid rgba(245,158,11,0.2)',
+        background: 'rgba(217,119,6,0.1)',
+        borderBottom: '1px solid rgba(217,119,6,0.2)',
         paddingTop: '8px',
         paddingBottom: '8px',
         paddingLeft: '16px',
         paddingRight: '16px',
         textAlign: 'center',
         fontSize: '14px',
-        color: '#F59E0B',
+        color: '#D97706',
       }}>
-        ⚡ This is a sample result.{' '}
-        <Link href="/diagnostic" style={{ color: '#F59E0B', textDecoration: 'underline' }}>
+        This is a sample result.{' '}
+        <Link href="/diagnostic" style={{ color: '#D97706', textDecoration: 'underline' }}>
           Start your free diagnostic
         </Link>
         {' '}to get your personalised score →
@@ -221,11 +227,11 @@ export default function DemoResultsPage() {
             <svg width="180" height="180" viewBox="0 0 120 120">
               <defs>
                 <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#3B82F6" />
-                  <stop offset="100%" stopColor="#8B5CF6" />
+                  <stop offset="0%" stopColor="#14B8A6" />
+                  <stop offset="100%" stopColor="#0D9488" />
                 </linearGradient>
               </defs>
-              <circle cx="60" cy="60" r="54" fill="none" stroke="#1F2937" strokeWidth="8" />
+              <circle cx="60" cy="60" r="54" fill="none" stroke="#1A2030" strokeWidth="8" />
               <circle
                 cx="60"
                 cy="60"
@@ -265,7 +271,9 @@ export default function DemoResultsPage() {
           </div>
 
           <div className="mt-4 animate-fade-up delay-2">
-            <span className="text-2xl">{emoji}</span>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
+              <ScoreTierIcon score={score} />
+            </div>
             <p className="font-bold text-2xl mt-2" style={{ color, letterSpacing: '-0.02em' }}>
               {label}
             </p>
@@ -295,23 +303,17 @@ export default function DemoResultsPage() {
           </h2>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {DIMENSIONS.map(({ key, label: dimLabel, icon }, index) => {
+            {DIMENSIONS.map(({ key, label: dimLabel }, index) => {
               const val = dims[key] ?? 0
               const c = scoreColor(val)
               const delayClass = `delay-${index + 1}` as
-                | 'delay-1'
-                | 'delay-2'
-                | 'delay-3'
-                | 'delay-4'
-                | 'delay-5'
-                | 'delay-6'
+                | 'delay-1' | 'delay-2' | 'delay-3' | 'delay-4' | 'delay-5' | 'delay-6'
               return (
                 <div
                   key={key}
                   className={`glass rounded-2xl animate-fade-up ${delayClass}`}
                   style={{ padding: '24px' }}
                 >
-                  <span style={{ fontSize: '1.5rem' }}>{icon}</span>
                   <div className="font-bold mt-2" style={{ fontSize: '1.875rem', color: c }}>
                     {val}
                   </div>
@@ -320,7 +322,7 @@ export default function DemoResultsPage() {
                   </div>
                   <div
                     className="rounded-full overflow-hidden mt-3"
-                    style={{ height: '6px', background: '#1F2937' }}
+                    style={{ height: '6px', background: '#1A2030' }}
                   >
                     <div
                       style={
@@ -369,7 +371,7 @@ export default function DemoResultsPage() {
                       top: '28px',
                       bottom: 0,
                       width: '2px',
-                      background: '#1F2937',
+                      background: '#1A2030',
                     }}
                   />
                 )}
@@ -383,7 +385,7 @@ export default function DemoResultsPage() {
                     width: '24px',
                     height: '24px',
                     borderRadius: '9999px',
-                    background: '#3B82F6',
+                    background: 'var(--accent)',
                     color: 'white',
                     fontSize: '0.65rem',
                   }}
@@ -413,7 +415,7 @@ export default function DemoResultsPage() {
                               width: '6px',
                               height: '6px',
                               borderRadius: '9999px',
-                              background: '#3B82F6',
+                              background: 'var(--accent)',
                               marginTop: '6px',
                               flexShrink: 0,
                             }}
@@ -447,9 +449,9 @@ export default function DemoResultsPage() {
                 <span
                   className="rounded-full text-xs font-medium inline-block self-start mb-4"
                   style={{
-                    background: 'rgba(59,130,246,0.1)',
-                    color: '#3B82F6',
-                    border: '1px solid rgba(59,130,246,0.2)',
+                    background: 'var(--accent-dim)',
+                    color: 'var(--accent-light)',
+                    border: '1px solid rgba(13,148,136,0.2)',
                     padding: '3px 12px',
                   }}
                 >
@@ -467,7 +469,7 @@ export default function DemoResultsPage() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-4 block text-sm hover:underline"
-                    style={{ color: '#3B82F6' }}
+                    style={{ color: 'var(--accent-light)' }}
                   >
                     Visit →
                   </a>
@@ -495,11 +497,13 @@ export default function DemoResultsPage() {
             <ShareButton id="demo" />
             <a
               href="/diagnostic"
-              className="font-semibold rounded-full transition-all"
+              className="font-semibold rounded-full cta-button"
               style={{
-                background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
+                background: 'var(--accent)',
                 color: 'white',
                 padding: '12px 24px',
+                textDecoration: 'none',
+                display: 'inline-block',
               }}
             >
               Start my diagnostic →

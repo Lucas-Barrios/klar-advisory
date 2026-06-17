@@ -1,12 +1,39 @@
 'use client'
 import { useState } from 'react'
+import { FileText, Lock } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
-export default function DocumentFactoryClient({ diagnosticId }: { diagnosticId: string }) {
+export default function DocumentFactoryClient({
+  diagnosticId,
+  documentsUnlocked,
+}: {
+  diagnosticId: string
+  documentsUnlocked: boolean
+}) {
   const [loading, setLoading] = useState(false)
   const [documents, setDocuments] = useState<any>(null)
   const [error, setError] = useState(false)
+  const [checkoutLoading, setCheckoutLoading] = useState(false)
+
+  const handleUnlock = async () => {
+    setCheckoutLoading(true)
+    try {
+      const res = await fetch(`${API_URL}/api/payments/create-checkout-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ diagnostic_id: diagnosticId, product: 'documents' }),
+      })
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        setCheckoutLoading(false)
+      }
+    } catch {
+      setCheckoutLoading(false)
+    }
+  }
 
   const generate = async () => {
     setLoading(true)
@@ -54,7 +81,6 @@ export default function DocumentFactoryClient({ diagnosticId }: { diagnosticId: 
     doc.text('Lebenslauf', margin, y)
     y += 12
 
-    // Profil
     doc.setFontSize(13)
     doc.setFont('helvetica', 'bold')
     doc.text('Profil', margin, y)
@@ -66,7 +92,6 @@ export default function DocumentFactoryClient({ diagnosticId }: { diagnosticId: 
     doc.text(profilLines, margin, y)
     y += profilLines.length * 5 + 10
 
-    // Ausbildung / Bildung
     if (documents.cv.ausbildung?.length > 0) {
       checkPageBreak(14)
       doc.setFontSize(13)
@@ -85,7 +110,6 @@ export default function DocumentFactoryClient({ diagnosticId }: { diagnosticId: 
       y += 4
     }
 
-    // Berufserfahrung
     if (documents.cv.berufserfahrung?.length > 0) {
       checkPageBreak(14)
       doc.setFontSize(13)
@@ -104,7 +128,6 @@ export default function DocumentFactoryClient({ diagnosticId }: { diagnosticId: 
       y += 4
     }
 
-    // Sprachkenntnisse
     if (documents.cv.sprachkenntnisse?.length > 0) {
       checkPageBreak(14)
       doc.setFontSize(13)
@@ -121,7 +144,6 @@ export default function DocumentFactoryClient({ diagnosticId }: { diagnosticId: 
       y += 4
     }
 
-    // Kompetenzen
     if (documents.cv.kompetenzen?.length > 0) {
       checkPageBreak(14)
       doc.setFontSize(13)
@@ -156,76 +178,122 @@ export default function DocumentFactoryClient({ diagnosticId }: { diagnosticId: 
     doc.save('Klar_Bewerbungsunterlagen.pdf')
   }
 
-  if (!documents) {
+  // Paywall — not yet purchased
+  if (!documentsUnlocked) {
     return (
-      <div style={{ marginTop: '24px' }}>
+      <div style={{
+        marginTop: '24px',
+        background: 'rgba(13,148,136,0.06)',
+        border: '1px solid rgba(13,148,136,0.2)',
+        borderRadius: '16px',
+        padding: '28px 24px',
+        textAlign: 'center',
+      }}>
+        <div style={{ marginBottom: '8px' }}>
+          <Lock size={24} color="var(--accent)" style={{ display: 'inline-block' }} />
+        </div>
+        <h3 style={{ fontSize: '1.0625rem', fontWeight: 700, color: '#F9FAFB', margin: '0 0 6px' }}>
+          German CV &amp; Cover Letter
+        </h3>
+        <p style={{ color: '#9CA3AF', fontSize: '0.875rem', margin: '0 auto 20px', maxWidth: '380px' }}>
+          Get a personalised German-format CV and cover letter generated from your diagnostic — ready to send to employers.
+        </p>
         <button
-          onClick={generate}
-          disabled={loading}
+          onClick={handleUnlock}
+          disabled={checkoutLoading}
           style={{
-            background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
+            background: 'var(--accent)',
             color: 'white',
             padding: '12px 28px',
             borderRadius: '9999px',
-            fontWeight: 600,
-            fontSize: '14px',
+            fontWeight: 700,
+            fontSize: '0.9375rem',
             border: 'none',
-            cursor: loading ? 'wait' : 'pointer',
-            opacity: loading ? 0.7 : 1,
+            cursor: checkoutLoading ? 'wait' : 'pointer',
+            opacity: checkoutLoading ? 0.7 : 1,
           }}
         >
-          {loading ? 'Generating your German CV & cover letter...' : '📄 Generate My German CV & Cover Letter'}
+          {checkoutLoading ? 'Redirecting…' : 'Unlock CV & Cover Letter — €15'}
         </button>
-        {error && (
-          <p style={{ color: '#EF4444', fontSize: '13px', marginTop: '8px' }}>
-            Something went wrong. Please try again.
-          </p>
-        )}
       </div>
     )
   }
 
+  // Documents already generated
+  if (documents) {
+    return (
+      <div style={{ marginTop: '24px' }}>
+        <div style={{
+          background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
+          borderRadius: '8px', padding: '12px 16px', marginBottom: '16px',
+          fontSize: '13px', color: '#FCD34D'
+        }}>
+          ⚠️ This is a structural template. Replace all [bracketed] placeholders
+          with your real information — address, employer names, exact dates — before
+          sending to any employer. Klar generates the format, you provide the facts.
+        </div>
+        <div
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: '16px',
+            padding: '24px',
+            marginBottom: '16px',
+          }}
+        >
+          <h3 style={{ color: '#F9FAFB', fontSize: '18px', marginBottom: '12px' }}>
+            Ihr Profil (Your CV Summary)
+          </h3>
+          <p style={{ color: '#9CA3AF', fontSize: '14px', lineHeight: 1.6 }}>
+            {documents.cv.profil}
+          </p>
+        </div>
+        <button
+          onClick={downloadPdf}
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: '9999px',
+            padding: '10px 24px',
+            fontSize: '14px',
+            color: '#F9FAFB',
+            cursor: 'pointer',
+          }}
+        >
+          <FileText size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />Download Full CV &amp; Cover Letter (PDF)
+        </button>
+      </div>
+    )
+  }
+
+  // Unlocked — not yet generated
   return (
     <div style={{ marginTop: '24px' }}>
-      <div style={{
-        background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
-        borderRadius: '8px', padding: '12px 16px', marginBottom: '16px',
-        fontSize: '13px', color: '#FCD34D'
-      }}>
-        ⚠️ This is a structural template. Replace all [bracketed] placeholders
-        with your real information — address, employer names, exact dates — before
-        sending to any employer. Klar generates the format, you provide the facts.
-      </div>
-      <div
-        style={{
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          borderRadius: '16px',
-          padding: '24px',
-          marginBottom: '16px',
-        }}
-      >
-        <h3 style={{ color: '#F9FAFB', fontSize: '18px', marginBottom: '12px' }}>
-          Ihr Profil (Your CV Summary)
-        </h3>
-        <p style={{ color: '#9CA3AF', fontSize: '14px', lineHeight: 1.6 }}>
-          {documents.cv.profil}
-        </p>
-      </div>
       <button
-        onClick={downloadPdf}
+        onClick={generate}
+        disabled={loading}
         style={{
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.08)',
+          background: 'var(--accent)',
+          color: 'white',
+          padding: '12px 28px',
           borderRadius: '9999px',
-          padding: '10px 24px',
+          fontWeight: 600,
           fontSize: '14px',
-          color: '#F9FAFB',
-          cursor: 'pointer',
+          border: 'none',
+          cursor: loading ? 'wait' : 'pointer',
+          opacity: loading ? 0.7 : 1,
         }}
       >
-        📥 Download Full CV & Cover Letter (PDF)
+        {loading
+          ? 'Generating your German CV & cover letter...'
+          : <><FileText size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />Generate My German CV &amp; Cover Letter</>
+        }
       </button>
+      {error && (
+        <p style={{ color: '#EF4444', fontSize: '13px', marginTop: '8px' }}>
+          Something went wrong. Please try again.
+        </p>
+      )}
     </div>
   )
 }

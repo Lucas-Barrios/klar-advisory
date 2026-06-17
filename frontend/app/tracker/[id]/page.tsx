@@ -1,4 +1,5 @@
 import TrackerClient from './TrackerClient'
+import { Search } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
@@ -58,7 +59,7 @@ export default async function TrackerPage(props: PageProps<'/tracker/[id]'>) {
         textAlign: 'center',
         padding: '24px',
       }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</div>
+        <div style={{ marginBottom: '16px' }}><Search size={48} color="#6B7280" /></div>
         <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#F9FAFB', margin: 0 }}>
           Diagnostic not found
         </h2>
@@ -67,7 +68,7 @@ export default async function TrackerPage(props: PageProps<'/tracker/[id]'>) {
         </p>
         <a href="/diagnostic" style={{
           marginTop: '32px',
-          background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
+          background: 'var(--accent)',
           color: 'white',
           padding: '12px 28px',
           borderRadius: '9999px',

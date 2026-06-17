@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import type { Diagnostic } from './ResultsContent'
+import { FileText } from 'lucide-react'
 
 interface Props {
   studentName: string
@@ -170,7 +171,10 @@ export default function DownloadPdfButton({ studentName, diagnostic }: Props) {
         transition: 'all 0.2s',
       }}
     >
-      {generating ? 'Generating...' : '📄 Download PDF'}
+      {generating
+        ? 'Generating...'
+        : <><FileText size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />Download PDF</>
+      }
     </button>
   )
 }
