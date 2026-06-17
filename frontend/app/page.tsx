@@ -55,7 +55,7 @@ export default function HomePage() {
             <br />
             {l.headline2}
             <br />
-            <span style={{ color: 'var(--accent-light)' }}>{l.headline3}</span>
+            <span style={{ color: '#F9FAFB', letterSpacing: '-0.06em' }}>{l.headline3}</span>
           </h1>
 
           {/* Subheadline */}
@@ -109,7 +109,7 @@ export default function HomePage() {
         >
           {stats.map(({ num, label }) => (
             <div key={label} className="text-center">
-              <div className="gradient-text font-bold" style={{ fontSize: '1.875rem' }}>
+              <div className="font-bold" style={{ fontSize: '1.875rem', color: '#F9FAFB' }}>
                 {num}
               </div>
               <div className="text-sm mt-1" style={{ color: '#9CA3AF' }}>
@@ -121,36 +121,37 @@ export default function HomePage() {
       </div>
 
       {/* Features section */}
-      <section className="max-w-5xl mx-auto px-6 w-full" style={{ paddingTop: '96px', paddingBottom: '96px' }}>
-        <h2
-          className="text-center font-bold mb-12"
-          style={{ fontSize: '2.25rem', letterSpacing: '-0.03em', color: '#F9FAFB' }}
-        >
+      <section style={{ padding: '80px 24px', maxWidth: '900px', margin: '0 auto', width: '100%' }}>
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 600, color: '#F9FAFB', marginBottom: '48px' }}>
           {l.featuresTitle}
         </h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          {features.map(({ num, title, desc }) => (
-            <div
-              key={num}
-              className="feature-card glass rounded-2xl cursor-default"
-              style={{ padding: '32px', border: '1px solid var(--border)' }}
-            >
-              <div className="gradient-text font-bold" style={{ fontSize: '3rem', letterSpacing: '-0.03em' }}>
-                {num}
-              </div>
-              <h3
-                className="font-semibold mt-4 mb-3"
-                style={{ fontSize: '1.125rem', color: '#F9FAFB' }}
-              >
+        {features.map(({ num, title, desc }, i) => (
+          <div key={num} style={{
+            display: 'flex',
+            gap: '32px',
+            padding: '32px 0',
+            borderTop: i === 0 ? 'none' : '1px solid rgba(255,255,255,0.08)',
+            alignItems: 'flex-start',
+            flexWrap: 'wrap',
+          }}>
+            <span style={{
+              fontSize: '4rem',
+              fontWeight: 600,
+              color: 'var(--accent)',
+              lineHeight: 1,
+              flexShrink: 0,
+              minWidth: '90px',
+            }}>{num}</span>
+            <div style={{ paddingTop: '8px', flex: 1, minWidth: '200px' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#F9FAFB', marginBottom: '8px' }}>
                 {title}
               </h3>
-              <p style={{ color: '#9CA3AF', fontSize: '0.9375rem', lineHeight: 1.6 }}>
+              <p style={{ fontSize: '1rem', color: 'var(--text2)', lineHeight: 1.6, maxWidth: '500px' }}>
                 {desc}
               </p>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </section>
 
       {/* Footer */}

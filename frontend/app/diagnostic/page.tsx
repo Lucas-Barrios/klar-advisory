@@ -33,6 +33,11 @@ type Answers = Record<string, string>
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
+const DIMENSIONS = [
+  'German Language', 'Education', 'Pathway Fit',
+  'Timeline', 'Finances', 'Documentation',
+]
+
 // Distinct icon per option for pathway
 const PATHWAY_ICONS: Record<string, LucideIcon> = {
   university: GraduationCap,
@@ -235,16 +240,12 @@ export default function DiagnosticPage() {
 
   const questions = buildQuestions(f)
 
-  const loadingMessages = [
-    f.loading1, f.loading2, f.loading3, f.loading4, f.loading5, f.loading6,
-  ]
-
   const [currentQ, setCurrentQ] = useState(0)
   const [answers, setAnswers] = useState<Answers>({})
   const [textInput, setTextInput] = useState('')
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward')
   const [isLoading, setIsLoading] = useState(false)
-  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0)
+  const [revealedCount, setRevealedCount] = useState(0)
   const [error, setError] = useState('')
 
   const question = questions[currentQ]
@@ -259,10 +260,10 @@ export default function DiagnosticPage() {
   useEffect(() => {
     if (!isLoading) return
     const interval = setInterval(() => {
-      setLoadingMessageIndex((i) => (i + 1) % loadingMessages.length)
-    }, 2500)
+      setRevealedCount(prev => prev < DIMENSIONS.length ? prev + 1 : prev)
+    }, 4500)
     return () => clearInterval(interval)
-  }, [isLoading, loadingMessages.length])
+  }, [isLoading])
 
   const advance = useCallback(
     (value?: string) => {
@@ -300,6 +301,7 @@ export default function DiagnosticPage() {
 
   async function submit(finalAnswers: Answers) {
     setIsLoading(true)
+    setRevealedCount(0)
     setError('')
 
     const payload = {
@@ -346,43 +348,39 @@ export default function DiagnosticPage() {
   if (isLoading) {
     return (
       <div
-        className="min-h-screen flex flex-col items-center justify-center px-4 text-center"
+        className="min-h-screen flex flex-col items-center justify-center px-4"
         style={{ background: '#0A0E1A' }}
       >
         <div className="pulsing-logo font-bold text-3xl mb-8" style={{ letterSpacing: '-0.03em', display: 'flex', alignItems: 'center', gap: '8px' }}>
           Klar <GermanFlag size={28} />
         </div>
 
-        <svg width="80" height="80" viewBox="0 0 80 80">
-          <defs>
-            <linearGradient id="spinGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#14B8A6" />
-              <stop offset="100%" stopColor="#0D9488" />
-            </linearGradient>
-          </defs>
-          <circle cx="40" cy="40" r="34" fill="none" stroke="#1A2030" strokeWidth="6" />
-          <circle
-            cx="40"
-            cy="40"
-            r="34"
-            fill="none"
-            stroke="url(#spinGradient)"
-            strokeWidth="6"
-            strokeLinecap="round"
-            strokeDasharray="53 160"
-            style={{
-              transformOrigin: '40px 40px',
-              animation: 'spin 1.2s linear infinite',
-            }}
-          />
-        </svg>
-
-        <p className="text-lg mt-6" style={{ color: '#9CA3AF' }}>
-          {loadingMessages[loadingMessageIndex]}
-        </p>
-        <p className="text-sm mt-3" style={{ color: '#6B7280' }}>
-          {f.loadingSub}
-        </p>
+        <div style={{ maxWidth: '400px', margin: '0 auto', width: '100%' }}>
+          <h2 style={{ fontSize: '1.25rem', color: '#F9FAFB', marginBottom: '32px', textAlign: 'center' }}>
+            Analysing your profile...
+          </h2>
+          {DIMENSIONS.map((dim, i) => (
+            <div key={dim} style={{
+              display: 'flex', alignItems: 'center', gap: '12px',
+              padding: '10px 0', opacity: i < revealedCount ? 1 : 0.3,
+              transition: 'opacity 0.4s ease',
+            }}>
+              <div style={{
+                width: '8px', height: '8px', borderRadius: '50%',
+                background: i < revealedCount ? 'var(--accent)' : 'rgba(255,255,255,0.15)',
+                flexShrink: 0,
+              }} />
+              <span style={{ fontSize: '0.9rem', color: i < revealedCount ? '#F9FAFB' : 'var(--text2)' }}>
+                {dim}{i < revealedCount ? ' — scored' : '...'}
+              </span>
+            </div>
+          ))}
+          {revealedCount >= DIMENSIONS.length && (
+            <p style={{ textAlign: 'center', color: 'var(--text2)', fontSize: '0.85rem', marginTop: '24px' }}>
+              Expert review queued...
+            </p>
+          )}
+        </div>
 
         {error && (
           <div
@@ -619,7 +617,7 @@ export default function DiagnosticPage() {
                         : '1px solid var(--border)',
                       background: isSelected
                         ? 'var(--accent-dim)'
-                        : 'rgba(255,255,255,0.04)',
+                        : 'var(--bg2)',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -630,14 +628,14 @@ export default function DiagnosticPage() {
                       if (!isSelected) {
                         const el = e.currentTarget as HTMLButtonElement
                         el.style.borderColor = 'rgba(13,148,136,0.5)'
-                        el.style.background = 'rgba(13,148,136,0.06)'
+                        el.style.background = 'var(--bg3)'
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (!isSelected) {
                         const el = e.currentTarget as HTMLButtonElement
                         el.style.borderColor = 'var(--border)'
-                        el.style.background = 'rgba(255,255,255,0.04)'
+                        el.style.background = 'var(--bg2)'
                       }
                     }}
                   >
@@ -707,7 +705,7 @@ export default function DiagnosticPage() {
                   <button
                     onClick={() => advance()}
                     disabled={question.required && !textInput}
-                    className="w-full font-semibold rounded-xl transition-all"
+                    className="w-full font-semibold rounded-full transition-all"
                     style={{
                       background: 'var(--accent)',
                       color: 'white',
@@ -727,7 +725,7 @@ export default function DiagnosticPage() {
                   <button
                     onClick={() => advance()}
                     disabled={question.required && !textInput}
-                    className="glass rounded-xl text-sm font-semibold transition-all"
+                    className="glass rounded-full text-sm font-semibold transition-all"
                     style={{
                       padding: '10px 20px',
                       border: '1px solid rgba(13,148,136,0.4)',
@@ -746,7 +744,7 @@ export default function DiagnosticPage() {
               <button
                 onClick={() => advance(selectedValue)}
                 disabled={!selectedValue}
-                className="font-semibold rounded-xl transition-all"
+                className="font-semibold rounded-full transition-all"
                 style={{
                   background: 'var(--accent)',
                   color: 'white',

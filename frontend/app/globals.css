@@ -35,10 +35,19 @@ body {
   color: var(--accent-light);
 }
 
+.surface-1 {
+  background: var(--bg2);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.surface-2 {
+  background: var(--bg3);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
 .glass {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border);
-  backdrop-filter: blur(12px);
+  background: var(--bg2);
+  border: 1px solid rgba(255,255,255,0.06);
 }
 
 @keyframes countUp {
@@ -141,12 +150,6 @@ body {
   background: var(--accent-light) !important;
 }
 
-.feature-card {
-  transition: border-color 0.3s ease;
-}
-.feature-card:hover {
-  border-color: var(--accent) !important;
-}
 
 .slide-in-right {
   animation: slideInFromRight 0.3s ease forwards;

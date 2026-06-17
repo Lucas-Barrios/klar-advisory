@@ -97,10 +97,14 @@ export default function ResultsContent({
   diagnostic,
   id,
   notFound,
+  paymentSuccess,
+  paymentProduct,
 }: {
   diagnostic: Diagnostic | null
   id: string
   notFound: boolean
+  paymentSuccess?: boolean
+  paymentProduct?: string
 }) {
   const { t } = useLanguage()
   const r = t.results
@@ -278,6 +282,10 @@ export default function ResultsContent({
       <div className="max-w-3xl mx-auto px-4 py-16">
 
         {/* Section 1 — Hero score */}
+        <div style={{
+          background: 'radial-gradient(circle at 50% 0%, rgba(13,148,136,0.07) 0%, transparent 55%)',
+          padding: '40px 0',
+        }}>
         <div className="text-center animate-fade-up" style={{ paddingBottom: '64px' }}>
           <p className="animate-fade-up" style={{ color: '#9CA3AF', fontSize: '1.125rem' }}>
             {r.greeting} {displayName.split(' ')[0]}.
@@ -394,7 +402,12 @@ export default function ResultsContent({
             )}
           </div>
 
-          <DocumentFactoryClient diagnosticId={id} documentsUnlocked={diagnostic.documents_unlocked ?? false} />
+          <DocumentFactoryClient
+            diagnosticId={id}
+            documentsUnlocked={diagnostic.documents_unlocked ?? false}
+            paymentJustSucceeded={paymentSuccess === true && paymentProduct === 'documents'}
+          />
+        </div>
         </div>
 
         {/* Section 2 — Dimension scores */}
@@ -416,8 +429,12 @@ export default function ResultsContent({
                 return (
                   <div
                     key={key}
-                    className={`glass rounded-2xl animate-fade-up ${delayClass}`}
-                    style={{ padding: '24px' }}
+                    className={`glass animate-fade-up ${delayClass}`}
+                    style={{
+                      padding: '24px',
+                      borderLeft: `3px solid ${c}`,
+                      borderRadius: '0 12px 12px 0',
+                    }}
                   >
                     <div
                       className="font-bold mt-2"
