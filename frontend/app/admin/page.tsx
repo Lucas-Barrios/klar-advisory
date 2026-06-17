@@ -34,6 +34,8 @@ type DiagnosticRow = {
   status: string
   overall_score: number | null
   summary: string | null
+  next_step_message?: string | null
+  consultation_booked?: boolean | null
   dimension_scores: DimensionScores | null
   roadmap: RoadmapStep[] | null
   recommendations: Recommendation[] | null
@@ -552,6 +554,7 @@ function DetailsPanel({
   onClose,
   onApprove,
   onReject,
+  onMarkBooked,
   adminToken,
 }: {
   row: DiagnosticRow
@@ -560,9 +563,11 @@ function DetailsPanel({
   onClose: () => void
   onApprove: (id: string, notes: string) => Promise<void>
   onReject: (id: string, notes: string) => Promise<void>
+  onMarkBooked: (id: string) => Promise<void>
   adminToken: string
 }) {
   const [busy, setBusy] = useState(false)
+  const [bookingBusy, setBookingBusy] = useState(false)
   const [roadmapOpen, setRoadmapOpen] = useState(false)
 
   async function act(fn: (id: string, n: string) => Promise<void>) {
@@ -759,60 +764,112 @@ function DetailsPanel({
           />
         </div>
 
-        <div
-          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '24px' }}
-        >
-          <button
-            onClick={() => act(onReject)}
-            disabled={busy}
-            style={{
-              background: 'transparent',
-              border: '1px solid rgba(239,68,68,0.3)',
-              borderRadius: '12px',
-              color: '#EF4444',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-              padding: '12px',
-              cursor: busy ? 'not-allowed' : 'pointer',
-              opacity: busy ? 0.5 : 1,
-              minHeight: '44px',
-              transition: 'background 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (!busy) e.currentTarget.style.background = 'rgba(239,68,68,0.1)'
-            }}
-            onMouseLeave={(e) => {
-              if (!busy) e.currentTarget.style.background = 'transparent'
-            }}
+        {row.status === 'approved' ? (
+          <div style={{ marginTop: '24px' }}>
+            {row.consultation_booked ? (
+              <div
+                style={{
+                  borderRadius: '12px',
+                  border: '1px solid rgba(13,148,136,0.3)',
+                  background: 'rgba(13,148,136,0.08)',
+                  color: '#2DD4BF',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  padding: '12px',
+                  textAlign: 'center',
+                }}
+              >
+                📅 Booked ✓
+              </div>
+            ) : (
+              <button
+                onClick={async () => {
+                  setBookingBusy(true)
+                  await onMarkBooked(row.id)
+                  setBookingBusy(false)
+                }}
+                disabled={bookingBusy}
+                style={{
+                  background: 'rgba(13,148,136,0.12)',
+                  border: '1px solid rgba(13,148,136,0.35)',
+                  borderRadius: '12px',
+                  color: '#2DD4BF',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  padding: '12px',
+                  width: '100%',
+                  cursor: bookingBusy ? 'not-allowed' : 'pointer',
+                  opacity: bookingBusy ? 0.5 : 1,
+                  minHeight: '44px',
+                  transition: 'filter 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (!bookingBusy) e.currentTarget.style.filter = 'brightness(1.15)'
+                }}
+                onMouseLeave={(e) => {
+                  if (!bookingBusy) e.currentTarget.style.filter = 'brightness(1)'
+                }}
+              >
+                ✓ Mark as Booked
+              </button>
+            )}
+          </div>
+        ) : (
+          <div
+            style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '24px' }}
           >
-            ✕ Reject
-          </button>
-          <button
-            onClick={() => act(onApprove)}
-            disabled={busy}
-            style={{
-              background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
-              border: 'none',
-              borderRadius: '12px',
-              color: 'white',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              padding: '12px',
-              cursor: busy ? 'not-allowed' : 'pointer',
-              opacity: busy ? 0.5 : 1,
-              minHeight: '44px',
-              transition: 'filter 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (!busy) e.currentTarget.style.filter = 'brightness(1.1)'
-            }}
-            onMouseLeave={(e) => {
-              if (!busy) e.currentTarget.style.filter = 'brightness(1)'
-            }}
-          >
-            ✓ Approve
-          </button>
-        </div>
+            <button
+              onClick={() => act(onReject)}
+              disabled={busy}
+              style={{
+                background: 'transparent',
+                border: '1px solid rgba(239,68,68,0.3)',
+                borderRadius: '12px',
+                color: '#EF4444',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                padding: '12px',
+                cursor: busy ? 'not-allowed' : 'pointer',
+                opacity: busy ? 0.5 : 1,
+                minHeight: '44px',
+                transition: 'background 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                if (!busy) e.currentTarget.style.background = 'rgba(239,68,68,0.1)'
+              }}
+              onMouseLeave={(e) => {
+                if (!busy) e.currentTarget.style.background = 'transparent'
+              }}
+            >
+              ✕ Reject
+            </button>
+            <button
+              onClick={() => act(onApprove)}
+              disabled={busy}
+              style={{
+                background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
+                border: 'none',
+                borderRadius: '12px',
+                color: 'white',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                padding: '12px',
+                cursor: busy ? 'not-allowed' : 'pointer',
+                opacity: busy ? 0.5 : 1,
+                minHeight: '44px',
+                transition: 'filter 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                if (!busy) e.currentTarget.style.filter = 'brightness(1.1)'
+              }}
+              onMouseLeave={(e) => {
+                if (!busy) e.currentTarget.style.filter = 'brightness(1)'
+              }}
+            >
+              ✓ Approve
+            </button>
+          </div>
+        )}
 
         {row.students?.pathway === 'ausbildung' && (
           <MatchedPositionsSection
@@ -1087,7 +1144,7 @@ export default function AdminPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [activeFilter, setActiveFilter] = useState('all')
   const [notes, setNotes] = useState<Record<string, string>>({})
-  const [stats, setStats] = useState({ pending: 0, approved_today: 0, total: 0 })
+  const [stats, setStats] = useState({ pending: 0, approved_today: 0, total: 0, approved_count: 0, booked_count: 0, conversion_rate: 0 })
   const [tco, setTco] = useState<TcoStats | null>(null)
   const [latestExperiment, setLatestExperiment] = useState<EvaluationExperimentSummary | null>(null)
 
@@ -1230,13 +1287,35 @@ export default function AdminPage() {
       return
     }
     if (res.ok) {
-      setRows((prev) => prev.filter((r) => r.id !== id))
-      setSelected(null)
-      setToast(
-        status === 'approved'
-          ? { message: '✓ Approved — student will be notified', type: 'success' }
-          : { message: '✕ Rejected', type: 'error' }
-      )
+      if (status === 'approved') {
+        // Keep in list so the Mark as Booked button is accessible
+        setRows((prev) => prev.map((r) => r.id === id ? { ...r, status: 'approved' } : r))
+        setSelected((prev) => prev?.id === id ? { ...prev, status: 'approved' } : prev)
+        setToast({ message: '✓ Approved — student will be notified', type: 'success' })
+      } else {
+        setRows((prev) => prev.filter((r) => r.id !== id))
+        setSelected(null)
+        setToast({ message: '✕ Rejected', type: 'error' })
+      }
+      fetchStats()
+    }
+  }
+
+  async function handleMarkBooked(id: string) {
+    if (!adminToken) return
+    const res = await fetch(`${API_URL}/api/admin/diagnostics/${id}/mark-booked`, {
+      method: 'POST',
+      headers: adminHeaders(),
+    })
+    if (isAuthFailure(res.status)) {
+      clearAdminSession()
+      return
+    }
+    if (res.ok) {
+      setRows((prev) => prev.map((r) => r.id === id ? { ...r, consultation_booked: true } : r))
+      setSelected((prev) => prev?.id === id ? { ...prev, consultation_booked: true } : prev)
+      setToast({ message: '📅 Booking recorded — conversion tracked', type: 'success' })
+      fetchStats()
     }
   }
 
@@ -1323,7 +1402,7 @@ export default function AdminPage() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
+            gridTemplateColumns: 'repeat(4, 1fr)',
             gap: '16px',
             marginBottom: '32px',
           }}
@@ -1354,10 +1433,23 @@ export default function AdminPage() {
               {loadingRows ? '—' : String(stats.total)}
             </div>
             <div style={{ fontSize: '0.875rem', color: '#6B7280', marginTop: '4px' }}>
-              all time
+              All time
             </div>
             <div style={{ fontSize: '0.75rem', color: '#4B5563', marginTop: '2px' }}>
               ~2 min avg review
+            </div>
+          </div>
+
+          <div className="glass" style={{ borderRadius: '16px', padding: '20px' }}>
+            <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>📅</div>
+            <div className="gradient-text" style={{ fontSize: '1.875rem', fontWeight: 700 }}>
+              {loadingRows ? '—' : `${stats.conversion_rate}%`}
+            </div>
+            <div style={{ fontSize: '0.875rem', color: '#6B7280', marginTop: '4px' }}>
+              Conversion rate
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#4B5563', marginTop: '2px' }}>
+              {loadingRows ? '' : `${stats.booked_count}/${stats.approved_count} booked`}
             </div>
           </div>
         </div>
@@ -1653,6 +1745,7 @@ export default function AdminPage() {
           onClose={() => setSelected(null)}
           onApprove={(id, n) => handleReview(id, 'approved', n)}
           onReject={(id, n) => handleReview(id, 'rejected', n)}
+          onMarkBooked={handleMarkBooked}
           adminToken={adminToken}
         />
       )}

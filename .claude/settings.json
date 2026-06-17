@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(mkdir -p /Users/lucas/Desktop/Ironhack_projects/klar-advisory/frontend/app/results/\\\\[id\\\\])"
+      "Bash(mkdir -p /Users/lucas/Desktop/Ironhack_projects/klar-advisory/frontend/app/results/\\\\[id\\\\])",
+      "Bash(SUPABASE_ACCESS_TOKEN=\"\" supabase link --help)"
     ],
     "additionalDirectories": [
       "/Users/lucas/Desktop/Ironhack_projects/klar-advisory/frontend/app/results"
