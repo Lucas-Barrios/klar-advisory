@@ -283,6 +283,25 @@ def post_evaluation_experiment_compare(
     except Exception as e:
         raise HTTPException(status_code=500, detail="Could not compare evaluation experiment") from e
 
+@router.post("/diagnostics/{diagnostic_id}/mark-booked")
+def mark_booked(diagnostic_id: str):
+    supabase = get_supabase()
+    result = supabase.table("diagnostics").select("id").eq("id", diagnostic_id).single().execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Diagnostic not found")
+    supabase.table("diagnostics").update({
+        "consultation_booked": True,
+        "consultation_booked_at": datetime.now(timezone.utc).isoformat(),
+    }).eq("id", diagnostic_id).execute()
+    supabase.table("audit_log").insert({
+        "diagnostic_id": diagnostic_id,
+        "action": "consultation_booked",
+        "actor": "consultant",
+        "details": {},
+    }).execute()
+    return {"status": "ok"}
+
+
 @router.post("/refresh-positions")
 def refresh_positions():
     from services.ausbildung_cache import refresh_all_positions
@@ -302,7 +321,6 @@ def get_diagnostic_matches(diagnostic_id: str):
 @router.get("/stats")
 def get_stats():
     supabase = get_supabase()
-    from datetime import datetime, timezone
 
     pending = supabase.table("diagnostics").select(
         "id", count="exact"
@@ -319,10 +337,25 @@ def get_stats():
         "id", count="exact"
     ).execute()
 
+    approved_count_result = supabase.table("diagnostics").select(
+        "id", count="exact"
+    ).eq("status", "approved").execute()
+    approved_count = approved_count_result.count or 0
+
+    booked_count_result = supabase.table("diagnostics").select(
+        "id", count="exact"
+    ).eq("consultation_booked", True).execute()
+    booked_count = booked_count_result.count or 0
+
+    conversion_rate = round((booked_count / approved_count) * 100, 1) if approved_count > 0 else 0
+
     return {
         "pending": pending.count or 0,
         "approved_today": approved_today.count or 0,
-        "total": total.count or 0
+        "total": total.count or 0,
+        "approved_count": approved_count,
+        "booked_count": booked_count,
+        "conversion_rate": conversion_rate,
     }
 
 

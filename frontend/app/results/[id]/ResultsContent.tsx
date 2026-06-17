@@ -4,6 +4,7 @@ import { useLanguage } from '@/lib/LanguageContext'
 import CopyLinkButton from './CopyLinkButton'
 import { ShareButton } from './ShareButton'
 import DownloadPdfButton from './DownloadPdfButton'
+import DocumentFactoryClient from './DocumentFactoryClient'
 
 type RoadmapStep = {
   month: number
@@ -33,6 +34,7 @@ export type Diagnostic = {
   status: 'pending' | 'approved' | 'rejected'
   overall_score: number | null
   summary: string | null
+  next_step_message?: string | null
   dimension_scores: DimensionScores | null
   roadmap: RoadmapStep[] | null
   recommendations: Recommendation[] | null
@@ -375,6 +377,8 @@ export default function ResultsContent({
               </a>
             )}
           </div>
+
+          <DocumentFactoryClient diagnosticId={id} />
         </div>
 
         {/* Section 2 — Dimension scores */}
@@ -606,12 +610,14 @@ export default function ResultsContent({
             {r.ctaTitle}
           </h2>
           <p className="mt-2 mb-6" style={{ color: '#9CA3AF' }}>
-            {r.ctaBody}
+            {diagnostic.next_step_message ?? r.ctaBody}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <ShareButton id={id} />
             <a
-              href="mailto:hello@klar.app?subject=Free consultation"
+              href="https://cal.com/lucas-barrios-qlrx5k/free-15-min-germany-pathway-consultation"
+              target="_blank"
+              rel="noopener noreferrer"
               className="font-semibold rounded-full transition-all"
               style={{
                 background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',

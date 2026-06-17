@@ -71,6 +71,7 @@ async def create_diagnostic(student: StudentProfileInput, background_tasks: Back
             "financial_score": output["financial_score"],
             "documentation_score": output["documentation_score"],
             "summary": output["summary"],
+            "next_step_message": output.get("next_step_message"),
             "roadmap": output["roadmap"],
             "recommendations": output["recommendations"],
             "raw_output": output.get("raw_output", ""),
@@ -181,6 +182,7 @@ def public_diagnostic_result(record: dict) -> dict:
             "documentation": record.get("documentation_score"),
         },
         "summary": record.get("summary"),
+        "next_step_message": record.get("next_step_message"),
         "roadmap": record.get("roadmap"),
         "recommendations": record.get("recommendations"),
         "completed_steps": record.get("completed_steps") or [],
@@ -283,6 +285,29 @@ def update_progress(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{diagnostic_id}/generate-documents")
+def generate_documents_endpoint(diagnostic_id: str):
+    supabase = get_supabase()
+    try:
+        diagnostic = supabase.table("diagnostics").select(
+            "*, students(*)"
+        ).eq("id", diagnostic_id).single().execute()
+    except Exception as e:
+        raise HTTPException(status_code=404, detail="Diagnostic not found") from e
+
+    student_data = (diagnostic.data or {}).get("students") or {}
+
+    try:
+        from agents.document_factory import generate_documents
+        documents = generate_documents(student_data)
+        return documents
+    except Exception as e:
+        import traceback
+        print("=== DOCUMENT GENERATION FAILED ===")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Could not generate documents: {str(e)}")
 
 
 def run_ausbildung_matching(diagnostic_id: str, student_data: dict) -> None:

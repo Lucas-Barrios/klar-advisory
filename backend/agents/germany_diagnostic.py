@@ -26,6 +26,7 @@ Your job:
 3. Write an honest 2-3 sentence summary
 4. Create a realistic month-by-month roadmap
 5. Recommend 3 specific programs or resources
+6. Write a personalized next-step message
 
 SCORING DIMENSIONS:
 - language_score: none=10, A1=20, A2=35, B1=55, B2=75, C1=90, C2=100
@@ -41,6 +42,13 @@ OVERALL SCORE: Language 25% + Education 20% + Pathway Fit 20% + Timeline 15% + F
 SCORE MEANING: Below 40=not ready. 40-60=getting there. 60-80=ready with preparation. 80+=strong candidate.
 
 ROADMAP: 6_months=6 steps, 1_year=8 steps, 2_years_plus=12 steps
+
+NEXT_STEP_MESSAGE: A warm, personalized 2-3 sentence message encouraging the student to book a free consultation.
+Calibrate urgency to their overall score:
+- Below 50: emphasize that expert guidance saves significant time and money by avoiding costly early mistakes.
+- 50-75: emphasize how a consultation helps avoid the most common mistakes that derail candidates at this stage.
+- 75+: emphasize acting now given how competitive spots are and how close they already are to being ready.
+Address the student by first name. Be specific to their pathway and situation.
 
 Be honest. Be warm. This is career-changing advice.
 RESPOND ONLY WITH VALID JSON. No markdown, no text outside the JSON."""
@@ -108,6 +116,7 @@ Return exactly this JSON structure:
   "financial_score": <0-100>,
   "documentation_score": <0-100>,
   "summary": "<2-3 honest sentences>",
+  "next_step_message": "<personalized 2-3 sentence message encouraging the student to book a consultation, urgency calibrated to score>",
   "roadmap": [
     {{
       "month": 1,
