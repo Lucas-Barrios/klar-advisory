@@ -332,6 +332,7 @@ async def notify_n8n(diagnostic_id: str, name: str, email: str, pathway: str):
     try:
         timeout = float(os.getenv("N8N_WEBHOOK_TIMEOUT_SECONDS", "10"))
         async with httpx.AsyncClient(timeout=timeout) as c:
+            print(f"Attempting n8n webhook call to: {webhook}")
             response = await c.post(webhook, json={
                 "diagnostic_id": diagnostic_id,
                 "student_name": name,
@@ -341,6 +342,10 @@ async def notify_n8n(diagnostic_id: str, name: str, email: str, pathway: str):
             })
             response.raise_for_status()
     except Exception as e:
+        print(f"=== N8N WEBHOOK FAILED ===")
+        print(f"Error: {e}")
+        print(f"Webhook URL configured: {os.getenv('N8N_WEBHOOK_URL')}")
+        print(f"===========================")
         try:
             supabase = get_supabase()
             supabase.table("audit_log").insert({
@@ -352,5 +357,5 @@ async def notify_n8n(diagnostic_id: str, name: str, email: str, pathway: str):
                     "pathway": pathway,
                 }
             }).execute()
-        except Exception:
-            pass
+        except Exception as audit_e:
+            print(f"=== AUDIT LOG ALSO FAILED: {audit_e} ===")
