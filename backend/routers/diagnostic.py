@@ -324,6 +324,31 @@ def run_ausbildung_matching(diagnostic_id: str, student_data: dict) -> None:
         print(f"Position matching failed (non-blocking): {e}")
 
 
+async def notify_student_approved(diagnostic_id: str, name: str, email: str):
+    webhook = os.getenv("N8N_APPROVAL_WEBHOOK_URL")
+    print(f"[N8N APPROVAL DEBUG] webhook env var resolved to: {webhook!r}")
+
+    if not webhook:
+        print(f"[N8N APPROVAL DEBUG] No approval webhook configured, returning early")
+        return
+
+    frontend_url = os.getenv("FRONTEND_URL", "https://klar-advisory.vercel.app")
+    results_url = f"{frontend_url}/results/{diagnostic_id}"
+
+    print(f"[N8N APPROVAL DEBUG] Attempting webhook call to: {webhook}")
+    try:
+        async with httpx.AsyncClient() as c:
+            response = await c.post(webhook, json={
+                "diagnostic_id": diagnostic_id,
+                "student_name": name,
+                "student_email": email,
+                "results_url": results_url
+            })
+            print(f"[N8N APPROVAL DEBUG] Webhook succeeded, status: {response.status_code}")
+    except Exception as e:
+        print(f"[N8N APPROVAL DEBUG] Webhook FAILED: {type(e).__name__}: {e}")
+
+
 async def notify_n8n(diagnostic_id: str, name: str, email: str, pathway: str):
     webhook = os.getenv("N8N_WEBHOOK_URL")
     print(f"[N8N DEBUG] notify_n8n called for diagnostic {diagnostic_id}")

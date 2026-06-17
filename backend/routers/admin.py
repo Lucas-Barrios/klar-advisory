@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from models.schemas import (
     EvaluationDatasetCreate,
     EvaluationExampleCreate,
@@ -26,6 +26,7 @@ from services.evaluation import (
     list_evaluation_datasets,
     record_evaluation_result,
 )
+from routers.diagnostic import notify_student_approved
 from services.redaction import redact_sensitive_text
 from services.statistical_evaluation import (
     create_evaluation_experiment,
@@ -65,7 +66,7 @@ def get_diagnostic(diagnostic_id: str):
     return result.data
 
 @router.post("/diagnostics/{diagnostic_id}/review")
-def review_diagnostic(diagnostic_id: str, action: ReviewAction):
+def review_diagnostic(diagnostic_id: str, action: ReviewAction, background_tasks: BackgroundTasks):
     supabase = get_supabase()
     diagnostic = supabase.table("diagnostics").select(
         "id, students(name, full_name, email)"
@@ -125,6 +126,13 @@ def review_diagnostic(diagnostic_id: str, action: ReviewAction):
             "reviewer_correction_notes": sanitized_correction_notes,
         }
     }).execute()
+
+    if action.status == "approved":
+        student_name = student.get("name") or student.get("full_name") or ""
+        student_email = student.get("email") or ""
+        background_tasks.add_task(
+            notify_student_approved, diagnostic_id, student_name, student_email
+        )
 
     return {"status": "ok", "message": f"Diagnostic {action.status}"}
 
