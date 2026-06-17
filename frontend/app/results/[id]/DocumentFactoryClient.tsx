@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { FileText, Lock } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
@@ -7,14 +7,47 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 export default function DocumentFactoryClient({
   diagnosticId,
   documentsUnlocked,
+  paymentJustSucceeded = false,
 }: {
   diagnosticId: string
   documentsUnlocked: boolean
+  paymentJustSucceeded?: boolean
 }) {
   const [loading, setLoading] = useState(false)
   const [documents, setDocuments] = useState<any>(null)
   const [error, setError] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
+  const [isUnlocked, setIsUnlocked] = useState(documentsUnlocked)
+  const [checkingPayment, setCheckingPayment] = useState(paymentJustSucceeded && !documentsUnlocked)
+
+  useEffect(() => {
+    if (!paymentJustSucceeded || documentsUnlocked) return
+
+    let attempts = 0
+    const maxAttempts = 6
+
+    const interval = setInterval(async () => {
+      attempts++
+      try {
+        const res = await fetch(`${API_URL}/api/diagnostic/${diagnosticId}/result`, {
+          cache: 'no-store',
+        })
+        const data = await res.json()
+        if (data.documents_unlocked) {
+          setIsUnlocked(true)
+          setCheckingPayment(false)
+          clearInterval(interval)
+        } else if (attempts >= maxAttempts) {
+          setCheckingPayment(false)
+          clearInterval(interval)
+        }
+      } catch (err) {
+        console.error('Polling for unlock status failed:', err)
+      }
+    }, 2000)
+
+    return () => clearInterval(interval)
+  }, [paymentJustSucceeded, documentsUnlocked, diagnosticId])
 
   const handleUnlock = async () => {
     setCheckoutLoading(true)
@@ -179,16 +212,34 @@ export default function DocumentFactoryClient({
   }
 
   // Paywall — not yet purchased
-  if (!documentsUnlocked) {
+  if (!isUnlocked) {
     return (
-      <div style={{
-        marginTop: '24px',
-        background: 'rgba(13,148,136,0.06)',
-        border: '1px solid rgba(13,148,136,0.2)',
-        borderRadius: '16px',
-        padding: '28px 24px',
-        textAlign: 'center',
-      }}>
+      <div style={{ marginTop: '24px' }}>
+        {checkingPayment && (
+          <div style={{
+            background: 'rgba(13,148,136,0.1)', border: '1px solid rgba(13,148,136,0.3)',
+            borderRadius: '8px', padding: '12px 16px', marginBottom: '16px',
+            fontSize: '13px', color: '#5EEAD4',
+          }}>
+            Payment received — confirming your unlock, this takes a few seconds...
+          </div>
+        )}
+        {!checkingPayment && paymentJustSucceeded && !isUnlocked && (
+          <div style={{
+            background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
+            borderRadius: '8px', padding: '12px 16px', marginBottom: '16px',
+            fontSize: '13px', color: '#FCD34D',
+          }}>
+            Your payment was successful, but unlocking is taking longer than expected. Please refresh this page in a moment.
+          </div>
+        )}
+        <div style={{
+          background: 'rgba(13,148,136,0.06)',
+          border: '1px solid rgba(13,148,136,0.2)',
+          borderRadius: '16px',
+          padding: '28px 24px',
+          textAlign: 'center',
+        }}>
         <div style={{ marginBottom: '8px' }}>
           <Lock size={24} color="var(--accent)" style={{ display: 'inline-block' }} />
         </div>
@@ -215,6 +266,7 @@ export default function DocumentFactoryClient({
         >
           {checkoutLoading ? 'Redirecting…' : 'Unlock CV & Cover Letter — €15'}
         </button>
+        </div>
       </div>
     )
   }

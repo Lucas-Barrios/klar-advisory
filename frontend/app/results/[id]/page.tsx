@@ -3,8 +3,14 @@ import ResultsContent, { type Diagnostic } from './ResultsContent'
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 const FETCH_TIMEOUT_MS = 8000
 
-export default async function ResultsPage(props: PageProps<'/results/[id]'>) {
+export default async function ResultsPage(props: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<Record<string, string>>
+}) {
   const { id } = await props.params
+  const searchParams = await props.searchParams
+  const paymentSuccess = searchParams.payment === 'success'
+  const paymentProduct = searchParams.product
 
   let diagnostic: Diagnostic | null = null
   let notFound = false
@@ -46,6 +52,8 @@ export default async function ResultsPage(props: PageProps<'/results/[id]'>) {
       diagnostic={diagnostic}
       id={id}
       notFound={notFound || !diagnostic}
+      paymentSuccess={paymentSuccess}
+      paymentProduct={paymentProduct}
     />
   )
 }
