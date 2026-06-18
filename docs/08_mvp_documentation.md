@@ -22,7 +22,7 @@ Klar is a full-stack AI-powered product that delivers personalised Germany readi
 ├──────────────────┬──────────────────────────────┤
 │   FRONTEND       │   BACKEND                    │
 │   Next.js 15     │   FastAPI (Python)            │
-│   TypeScript     │   LangChain                  │
+│   TypeScript     │   Anthropic SDK + LangSmith  │
 │   Tailwind CSS   │   Anthropic Claude Sonnet    │
 │   Supabase JS    │   Supabase Python SDK        │
 │   Vercel         │   Render                     │
@@ -71,7 +71,7 @@ klar-advisory/
 │   ├── models/
 │   │   └── schemas.py          # Pydantic models
 │   ├── agents/
-│   │   └── germany_diagnostic.py  # LangChain + Claude agent
+│   │   └── germany_diagnostic.py  # Raw Anthropic SDK + LangSmith tracing
 │   ├── routers/
 │   │   ├── diagnostic.py       # POST /api/diagnostic/
 │   │   └── admin.py            # GET/POST /api/admin/*

@@ -5,6 +5,7 @@ from typing import Any
 
 from anthropic import Anthropic
 from database import get_supabase
+from langsmith.wrappers import wrap_anthropic
 from services.ai_observability import (
     AI_MODEL,
     AI_MODEL_HAIKU,
@@ -17,7 +18,7 @@ from services.ai_observability import (
 )
 
 logger = logging.getLogger(__name__)
-client = Anthropic(max_retries=2)
+client = wrap_anthropic(Anthropic(max_retries=2))
 
 
 class MatchingAIError(RuntimeError):

@@ -2,6 +2,7 @@ import json
 import time
 
 from anthropic import Anthropic
+from langsmith.wrappers import wrap_anthropic
 from services.ai_observability import (
     AI_MODEL,
     AI_PROVIDER,
@@ -10,7 +11,7 @@ from services.ai_observability import (
     extract_usage_tokens,
 )
 
-client = Anthropic(max_retries=2)
+client = wrap_anthropic(Anthropic(max_retries=2))
 
 
 class DocumentAIError(RuntimeError):

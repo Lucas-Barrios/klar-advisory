@@ -5,6 +5,7 @@ from typing import Any
 
 from anthropic import Anthropic
 from dotenv import load_dotenv
+from langsmith.wrappers import wrap_anthropic
 from services.ai_observability import (
     AI_MODEL,
     AI_PROVIDER,
@@ -127,7 +128,7 @@ def get_env_float(name: str, default: float, *, minimum: float, maximum: float) 
 def get_anthropic_client() -> Anthropic:
     global client
     if client is None:
-        client = Anthropic(max_retries=2)
+        client = wrap_anthropic(Anthropic(max_retries=2))
     return client
 
 

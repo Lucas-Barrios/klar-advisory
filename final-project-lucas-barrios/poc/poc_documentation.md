@@ -24,7 +24,8 @@ The live deployed application serves as the interactive demo. Record a 2–5 min
 | Tool | Role | Why chosen |
 |---|---|---|
 | FastAPI (Python) | Backend API | Fast to build, automatic Swagger docs, native async, Python AI ecosystem |
-| LangChain | AI agent orchestration | Course-taught — abstracts LLM calls, structured output, swappable providers |
+| Anthropic SDK (raw) | LLM calls to Claude Sonnet/Haiku | Direct SDK — no framework abstraction, traced via LangSmith |
+| LangSmith | Observability and tracing | Wraps the Anthropic client via `wrap_anthropic`; captures every LLM call in the LangSmith UI |
 | Anthropic Claude Sonnet | LLM for diagnostic generation | Best-in-class instruction following, structured JSON output, low hallucination rate |
 | Supabase | Database and storage | PostgreSQL with Row Level Security, EU-region available for GDPR |
 | Next.js 15 | Frontend | TypeScript, server components, file-based routing |
@@ -43,7 +44,7 @@ Student visits the app and fills an 11-question conversational form (one questio
 Frontend POSTs to `/api/diagnostic/`. FastAPI validates against the Pydantic schema. Malformed requests are rejected before reaching the AI agent.
 
 **Step 3 — AI agent runs**
-The validated profile is sent to Claude Sonnet via LangChain. The system prompt contains the full scoring rubric with numeric anchors. Claude returns a JSON object with: overall score (0–100), 6 dimension scores, a 2–3 sentence summary, a month-by-month roadmap, and 3 specific recommendations.
+The validated profile is sent directly to Claude Sonnet via the raw Anthropic Python SDK (no LangChain). The system prompt contains the full scoring rubric with numeric anchors. Claude returns a JSON object with: overall score (0–100), 6 dimension scores, a 2–3 sentence summary, a month-by-month roadmap, and 3 specific recommendations. Every call is automatically traced to LangSmith via `wrap_anthropic`.
 
 **Step 4 — Results saved to Supabase**
 Student profile saved to `students` table. AI output saved to `diagnostics` table with `status: pending`. Audit log entry created (EU AI Act Article 12 compliance).
@@ -85,7 +86,7 @@ Three capabilities demonstrated:
 | No Spanish language version | Excludes students not comfortable in English | i18n frontend with Spanish translations (Month 3) |
 | Admin password hardcoded | Security risk at scale | JWT authentication with Supabase Auth |
 | No email delivery yet | Student must manually refresh results | n8n email workflow (webhook already wired in backend) |
-| Single LLM provider | Anthropic outage = service unavailable | LangChain abstraction makes provider swap a 1-line change |
+| Single LLM provider | Anthropic outage = service unavailable | Abstract client creation behind a factory function; provider swap is a localised change |
 | No rate limiting | Vulnerable to abuse at scale | Redis rate limiting before public launch |
 | Temperature 0.3, not zero | Minor score variation between identical profiles | Deterministic caching layer for repeated profiles |
 
