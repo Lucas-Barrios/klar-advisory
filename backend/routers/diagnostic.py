@@ -359,6 +359,7 @@ async def notify_student_approved(diagnostic_id: str, name: str, email: str):
     print(f"[N8N APPROVAL DEBUG] Attempting webhook call to: {webhook}")
     try:
         async with httpx.AsyncClient() as c:
+            print(f"[N8N APPROVAL DEBUG] Sending payload: diagnostic_id={diagnostic_id!r}, student_name={name!r}, student_email={email!r}, results_url={results_url!r}")
             response = await c.post(webhook, json={
                 "diagnostic_id": diagnostic_id,
                 "student_name": name,
@@ -366,6 +367,7 @@ async def notify_student_approved(diagnostic_id: str, name: str, email: str):
                 "results_url": results_url
             })
             print(f"[N8N APPROVAL DEBUG] Webhook succeeded, status: {response.status_code}")
+            print(f"[N8N APPROVAL DEBUG] Response body: {response.text}")
     except Exception as e:
         print(f"[N8N APPROVAL DEBUG] Webhook FAILED: {type(e).__name__}: {e}")
 
