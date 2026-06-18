@@ -50,24 +50,27 @@ def _get_current_state() -> dict[str, str]:
     from agents.germany_diagnostic import SYSTEM_PROMPT
     from agents.ausbildung_matcher import MATCH_PROMPT
     from agents.document_factory import DOCUMENT_PROMPT
+    # Import *_DEFAULT constants so env overrides can't produce false pass/fail.
+    # A stray DIAGNOSTIC_PROMPT_VERSION env var would mask a real drift if we
+    # imported the env-resolved constant here.
     from services.diagnostic_versions import (
-        DIAGNOSTIC_PROMPT_VERSION,
-        MATCH_PROMPT_VERSION,
-        DOCUMENT_PROMPT_VERSION,
+        DIAGNOSTIC_PROMPT_VERSION_DEFAULT,
+        MATCH_PROMPT_VERSION_DEFAULT,
+        DOCUMENT_PROMPT_VERSION_DEFAULT,
     )
 
     return {
         "diagnostic": {
             "prompt_hash": _hash_string(SYSTEM_PROMPT),
-            "version": DIAGNOSTIC_PROMPT_VERSION,
+            "version": DIAGNOSTIC_PROMPT_VERSION_DEFAULT,
         },
         "match": {
             "prompt_hash": _hash_string(MATCH_PROMPT),
-            "version": MATCH_PROMPT_VERSION,
+            "version": MATCH_PROMPT_VERSION_DEFAULT,
         },
         "document": {
             "prompt_hash": _hash_string(DOCUMENT_PROMPT),
-            "version": DOCUMENT_PROMPT_VERSION,
+            "version": DOCUMENT_PROMPT_VERSION_DEFAULT,
         },
     }
 
