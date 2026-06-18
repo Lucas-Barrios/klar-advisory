@@ -22,36 +22,16 @@ export default function OgImage() {
         {/* Wordmark */}
         <div
           style={{
-            display: 'flex',
-            alignItems: 'flex-end',
+            color: '#F9FAFB',
+            fontSize: 96,
+            fontWeight: 800,
+            letterSpacing: '-0.04em',
+            fontFamily: 'Space Grotesk, system-ui, sans-serif',
+            lineHeight: 1,
             marginBottom: 28,
           }}
         >
-          <div
-            style={{
-              color: '#F9FAFB',
-              fontSize: 96,
-              fontWeight: 700,
-              letterSpacing: '-4px',
-              fontFamily: 'Space Grotesk, system-ui, sans-serif',
-              lineHeight: 1,
-            }}
-          >
-            Klar
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 7,
-              marginLeft: 10,
-              marginBottom: 18,
-            }}
-          >
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#2563EB' }} />
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#2563EB' }} />
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#2563EB' }} />
-          </div>
+          Klar
         </div>
 
         {/* Tagline */}
