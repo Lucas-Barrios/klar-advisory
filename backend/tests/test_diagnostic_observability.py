@@ -24,6 +24,8 @@ def sample_student() -> dict:
         "education_level": "Bachelor",
         "work_experience_years": 2,
         "timeline": "1_year",
+        "consent_given": True,
+        "consent_timestamp": "2026-06-18T12:00:00+00:00",
     }
 
 

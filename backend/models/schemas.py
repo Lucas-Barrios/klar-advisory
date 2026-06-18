@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from pydantic import BaseModel, Field, field_validator
 from typing import Any, Literal, Optional
 
@@ -26,6 +27,8 @@ class StudentProfileInput(BaseModel):
     financial_situation: Optional[str] = Field(default=None, max_length=1000)
     current_location: Optional[str] = Field(default=None, max_length=120)
     additional_info: Optional[str] = Field(default=None, max_length=1500)
+    consent_given: bool = Field(default=False)
+    consent_timestamp: Optional[datetime] = Field(default=None)
 
     @field_validator(
         "name",

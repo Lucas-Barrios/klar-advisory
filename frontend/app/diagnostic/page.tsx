@@ -247,6 +247,7 @@ export default function DiagnosticPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [revealedCount, setRevealedCount] = useState(0)
   const [error, setError] = useState('')
+  const [consentChecked, setConsentChecked] = useState(false)
 
   const question = questions[currentQ]
   const progressPct = (currentQ / questions.length) * 100
@@ -318,6 +319,8 @@ export default function DiagnosticPage() {
       financial_situation: finalAnswers.financial_situation,
       current_location: '',
       additional_info: '',
+      consent_given: consentChecked,
+      consent_timestamp: new Date().toISOString(),
     }
 
     try {
@@ -683,6 +686,41 @@ export default function DiagnosticPage() {
             </div>
           )}
 
+          {/* Consent checkbox — required on last step */}
+          {isLastQuestion && (
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px',
+                marginTop: '20px',
+                maxWidth: '560px',
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={consentChecked}
+                onChange={(e) => setConsentChecked(e.target.checked)}
+                style={{
+                  marginTop: '2px',
+                  accentColor: 'var(--accent)',
+                  width: '16px',
+                  height: '16px',
+                  flexShrink: 0,
+                  cursor: 'pointer',
+                }}
+              />
+              <span style={{ fontSize: '12px', color: '#6B7280', lineHeight: 1.5 }}>
+                I agree that Klar may process my personal data to generate a Germany readiness assessment, as described in the{' '}
+                <a href="/privacy" style={{ color: 'var(--accent-light)', textDecoration: 'underline' }}>
+                  Privacy Policy
+                </a>
+                . I understand this data will be reviewed by a human consultant before delivery.
+              </span>
+            </label>
+          )}
+
           {/* Navigation */}
           <div className="flex items-center justify-between mt-10" style={{ maxWidth: '560px' }}>
             {currentQ > 0 ? (
@@ -704,7 +742,7 @@ export default function DiagnosticPage() {
                 {isLastQuestion ? (
                   <button
                     onClick={() => advance()}
-                    disabled={question.required && !textInput}
+                    disabled={(question.required && !textInput) || !consentChecked}
                     className="w-full font-semibold rounded-full transition-all"
                     style={{
                       background: 'var(--accent)',
@@ -712,11 +750,11 @@ export default function DiagnosticPage() {
                       padding: '16px',
                       fontSize: '1.125rem',
                       border: 'none',
-                      opacity: question.required && !textInput ? 0.4 : 1,
-                      cursor: question.required && !textInput ? 'not-allowed' : 'pointer',
+                      opacity: (question.required && !textInput) || !consentChecked ? 0.4 : 1,
+                      cursor: (question.required && !textInput) || !consentChecked ? 'not-allowed' : 'pointer',
                       maxWidth: '560px',
                     }}
-                    onMouseEnter={(e) => { if (!(question.required && !textInput)) (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-light)' }}
+                    onMouseEnter={(e) => { if (!((question.required && !textInput) || !consentChecked)) (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-light)' }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent)' }}
                   >
                     {f.submitBtn}
@@ -743,7 +781,7 @@ export default function DiagnosticPage() {
             {question.type === 'choice' && isLastQuestion && (
               <button
                 onClick={() => advance(selectedValue)}
-                disabled={!selectedValue}
+                disabled={!selectedValue || !consentChecked}
                 className="font-semibold rounded-full transition-all"
                 style={{
                   background: 'var(--accent)',
@@ -751,10 +789,10 @@ export default function DiagnosticPage() {
                   padding: '14px 28px',
                   fontSize: '1rem',
                   border: 'none',
-                  opacity: !selectedValue ? 0.4 : 1,
-                  cursor: !selectedValue ? 'not-allowed' : 'pointer',
+                  opacity: !selectedValue || !consentChecked ? 0.4 : 1,
+                  cursor: !selectedValue || !consentChecked ? 'not-allowed' : 'pointer',
                 }}
-                onMouseEnter={(e) => { if (selectedValue) (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-light)' }}
+                onMouseEnter={(e) => { if (selectedValue && consentChecked) (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-light)' }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent)' }}
               >
                 {f.submitBtn}

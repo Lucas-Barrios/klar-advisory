@@ -3,7 +3,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from fastapi import HTTPException
+from fastapi import BackgroundTasks, HTTPException
 from fastapi.testclient import TestClient
 
 from main import app
@@ -86,6 +86,31 @@ class SecurityBlockerTests(unittest.TestCase):
     def tearDown(self):
         self.env_patch.stop()
 
+    def test_diagnostic_submission_rejected_without_consent(self):
+        """Server must return 422 when consent_given is absent or false."""
+        base_payload = {
+            "name": "Test Student",
+            "email": "test@example.com",
+            "country": "Brazil",
+            "pathway": "ausbildung",
+            "german_level": "B1",
+            "education_level": "bachelor",
+            "work_experience_years": 2,
+            "timeline": "1_year",
+            "financial_situation": "I have some savings but need funded options",
+        }
+
+        # Omitting consent_given entirely (defaults to false)
+        response = self.client.post("/api/diagnostic/", json=base_payload)
+        self.assertEqual(response.status_code, 422, "Missing consent_given must yield 422")
+
+        # Explicitly false
+        response = self.client.post(
+            "/api/diagnostic/",
+            json={**base_payload, "consent_given": False},
+        )
+        self.assertEqual(response.status_code, 422, "consent_given=False must yield 422")
+
     def test_admin_routes_reject_missing_and_invalid_authorization(self):
         protected_requests = [
             ("GET", "/api/admin/diagnostics", None),
@@ -121,10 +146,13 @@ class SecurityBlockerTests(unittest.TestCase):
             )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(),
-            {"pending": 2, "approved_today": 2, "total": 2},
-        )
+        body = response.json()
+        self.assertEqual(body["pending"], 2)
+        self.assertEqual(body["approved_today"], 2)
+        self.assertEqual(body["total"], 2)
+        self.assertIn("approved_count", body)
+        self.assertIn("booked_count", body)
+        self.assertIn("conversion_rate", body)
 
     def test_review_audit_details_redact_reviewer_notes(self):
         fake_supabase = FakeSupabase()
@@ -145,7 +173,9 @@ class SecurityBlockerTests(unittest.TestCase):
         )
 
         with patch.object(admin_router, "get_supabase", return_value=fake_supabase):
-            result = admin_router.review_diagnostic("diagnostic-1", action)
+            result = admin_router.review_diagnostic(
+                "diagnostic-1", action, BackgroundTasks()
+            )
 
         self.assertEqual(result["status"], "ok")
         audit_details = fake_supabase.inserts["audit_log"][0]["details"]

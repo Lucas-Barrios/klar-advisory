@@ -38,3 +38,19 @@ def redact_sensitive_text(
         redacted = NAME_LIKE_PATTERN.sub("[redacted-name]", redacted)
 
     return redacted
+
+
+def mask_name_for_log(value: str | None) -> str:
+    """Return a masked name safe for log lines (e.g. 'Sofia Ramirez' → 'S*** R***')."""
+    if not value or not value.strip():
+        return "[empty]"
+    parts = value.strip().split()
+    return " ".join(p[0] + "***" for p in parts if p)
+
+
+def mask_email_for_log(value: str | None) -> str:
+    """Return a masked email safe for log lines (e.g. 'foo@bar.com' → 'f***@bar.com')."""
+    if not value or "@" not in value:
+        return "[empty]"
+    local, domain = value.split("@", 1)
+    return (local[0] if local else "*") + "***@" + domain

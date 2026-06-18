@@ -17,6 +17,7 @@ from services.progress_auth import (
     hash_progress_token,
     verify_progress_token,
 )
+from services.redaction import mask_email_for_log, mask_name_for_log
 import httpx
 import os
 
@@ -42,13 +43,22 @@ def record_ai_usage(
 
 @router.post("/", response_model=DiagnosticResponse)
 async def create_diagnostic(student: StudentProfileInput, background_tasks: BackgroundTasks):
+    if not student.consent_given:
+        raise HTTPException(
+            status_code=422,
+            detail="Submission rejected: data processing consent is required.",
+        )
+
     supabase = get_supabase()
     student_id = None
     diagnostic_id = None
     ai_usage_event = None
     usage_logged = False
     try:
+        from datetime import datetime, timezone as _tz
         student_data = student.model_dump()
+        if student_data.get("consent_timestamp") is None:
+            student_data["consent_timestamp"] = datetime.now(_tz.utc).isoformat()
 
         # Save student
         s = supabase.table("students").insert(student_data).execute()
@@ -202,8 +212,11 @@ def public_diagnostic_result(record: dict) -> dict:
 def get_diagnostic_result(diagnostic_id: str):
     supabase = get_supabase()
     try:
+        # Fetch only the student fields the public view actually uses (name + pathway).
+        # Email is not returned by public_diagnostic_result; omitting it here enforces
+        # data minimisation at the query layer.
         result = supabase.table("diagnostics").select(
-            "*, students(name,full_name,email)"
+            "*, students(name,full_name,pathway)"
         ).eq("id", diagnostic_id).single().execute()
     except Exception as e:
         raise HTTPException(status_code=404, detail="Diagnostic not found") from e
@@ -359,7 +372,12 @@ async def notify_student_approved(diagnostic_id: str, name: str, email: str):
     print(f"[N8N APPROVAL DEBUG] Attempting webhook call to: {webhook}")
     try:
         async with httpx.AsyncClient() as c:
-            print(f"[N8N APPROVAL DEBUG] Sending payload: diagnostic_id={diagnostic_id!r}, student_name={name!r}, student_email={email!r}, results_url={results_url!r}")
+            print(
+                f"[N8N APPROVAL DEBUG] Sending payload: diagnostic_id={diagnostic_id!r}, "
+                f"student_name={mask_name_for_log(name)!r}, "
+                f"student_email={mask_email_for_log(email)!r}, "
+                f"results_url={results_url!r}"
+            )
             response = await c.post(webhook, json={
                 "diagnostic_id": diagnostic_id,
                 "student_name": name,
