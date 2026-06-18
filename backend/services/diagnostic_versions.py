@@ -30,7 +30,7 @@ MATCH_PROMPT_VERSION = os.getenv(
 )
 
 # Bump when DOCUMENT_PROMPT in document_factory.py changes.
-DOCUMENT_PROMPT_VERSION_DEFAULT = "document_factory_prompt_v1"
+DOCUMENT_PROMPT_VERSION_DEFAULT = "document_factory_prompt_v2"
 DOCUMENT_PROMPT_VERSION = os.getenv(
     "DOCUMENT_PROMPT_VERSION",
     DOCUMENT_PROMPT_VERSION_DEFAULT,

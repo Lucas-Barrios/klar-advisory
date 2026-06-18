@@ -8,7 +8,7 @@
     "version": "ausbildung_match_prompt_v1"
   },
   "document": {
-    "prompt_hash": "6b0f11f485a71495",
-    "version": "document_factory_prompt_v1"
+    "prompt_hash": "5e25fb7c168071d0",
+    "version": "document_factory_prompt_v2"
   }
 }
