@@ -10,7 +10,7 @@ import os
 
 # Bump when SYSTEM_PROMPT in germany_diagnostic.py changes.
 # The check_prompt_drift.py CI gate will fail if the hash changes without a bump.
-DIAGNOSTIC_PROMPT_VERSION_DEFAULT = "germany_diagnostic_prompt_v2"
+DIAGNOSTIC_PROMPT_VERSION_DEFAULT = "germany_diagnostic_prompt_v3"
 DIAGNOSTIC_PROMPT_VERSION = os.getenv(
     "DIAGNOSTIC_PROMPT_VERSION",
     DIAGNOSTIC_PROMPT_VERSION_DEFAULT,

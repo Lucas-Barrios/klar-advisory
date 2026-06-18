@@ -1,7 +1,7 @@
 {
   "diagnostic": {
-    "prompt_hash": "8affde14ee9223be",
-    "version": "germany_diagnostic_prompt_v2"
+    "prompt_hash": "f8a76c64a2d6b4b6",
+    "version": "germany_diagnostic_prompt_v3"
   },
   "match": {
     "prompt_hash": "f55a9321ac5a5f0f",

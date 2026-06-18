@@ -13,6 +13,11 @@ The model scores based on what the student writes about their finances. There is
 **Limitation: Field-of-study recognition likelihood is estimated, not sourced.**
 The `education_score` dimension includes a factor for recognition of foreign qualifications. This is AI-estimated based on general knowledge of ANABIN categories, not a live lookup. Always verify with anabin.kmk.org or ZAB.
 
+**Limitation: Recommended programs and URLs may be hallucinated.**
+The model is asked to recommend 3 specific programs or resources with URLs but is given no grounding data — no retrieval, no live search, no verified catalogue. It can plausibly generate a program name that sounds real but does not exist, or a URL that looks correct but leads to a 404 or the wrong page. This is a materially different risk from a coarse score because it is a concrete, checkable claim: a student may follow the link, find the page missing or unrelated, and lose trust or — worse — waste time applying to a non-existent program.
+
+Mitigation in place: `SYSTEM_PROMPT` (as of `germany_diagnostic_prompt_v3`) instructs the model to return `null` for `url` unless it is certain the link points to a real, active page at a well-known institution. The UI shows a disclaimer near recommendations. This reduces but does not eliminate the risk — always verify program names and links independently before applying.
+
 ## UC-02 — Ausbildung Position Matching
 
 **Limitation: German language requirements are AI-estimated, not employer-stated.**

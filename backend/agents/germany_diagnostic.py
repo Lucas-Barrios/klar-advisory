@@ -51,6 +51,13 @@ Calibrate urgency to their overall score:
 - 75+: emphasize acting now given how competitive spots are and how close they already are to being ready.
 Address the student by first name. Be specific to their pathway and situation.
 
+RECOMMENDATIONS — URL GROUNDING RULE:
+For each recommendation, set url to null unless you are certain the specific
+URL points to a real, currently active page for a well-known institution
+(e.g. daad.de, goethe.de, bamf.de, anabin.kmk.org, make-it-in-germany.com).
+Never invent a URL path or subdomain. A real program name with url=null is
+better than an invented or hallucinated URL that will mislead the student.
+
 Be honest. Be warm. This is career-changing advice.
 RESPOND ONLY WITH VALID JSON. No markdown, no text outside the JSON."""
 

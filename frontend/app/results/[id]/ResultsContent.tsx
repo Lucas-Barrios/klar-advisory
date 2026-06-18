@@ -578,6 +578,16 @@ export default function ResultsContent({
             >
               {r.recommended}
             </h2>
+            <p
+              style={{
+                fontSize: '0.8125rem',
+                color: '#6B7280',
+                marginBottom: '20px',
+                lineHeight: 1.6,
+              }}
+            >
+              AI-suggested resources — verify program names and links independently before applying.
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {diagnostic.recommendations.map((rec, i) => (
                 <div
