@@ -449,6 +449,8 @@ class DiagnosticRateLimitTests(unittest.TestCase):
         with (
             patch.object(diagnostic_router, "get_supabase", return_value=supabase_mock),
             patch.object(diagnostic_router, "run_diagnostic", return_value=self._MOCK_DIAGNOSTIC_OUTPUT),
+            patch.object(diagnostic_router, "notify_n8n"),
+            patch.object(diagnostic_router, "run_ausbildung_matching"),
         ):
             for i in range(5):
                 resp = self.client.post("/api/diagnostic/", json=self._VALID_PAYLOAD)
