@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react'
 import { FileText, Lock, ChevronDown, ChevronUp } from 'lucide-react'
 import { useLanguage } from '@/lib/LanguageContext'
+import ErrorMessage from '@/components/ErrorMessage'
+import { getErrorMessage } from '@/lib/errors'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
@@ -491,7 +493,7 @@ export default function DocumentFactoryClient({
   const { lang } = useLanguage()
   const [loading, setLoading] = useState(false)
   const [documents, setDocuments] = useState<Documents | null>(null)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [isUnlocked, setIsUnlocked] = useState(documentsUnlocked)
   const [checkingPayment, setCheckingPayment] = useState(paymentJustSucceeded && !documentsUnlocked)
@@ -565,7 +567,7 @@ export default function DocumentFactoryClient({
   // ── Generate ──────────────────────────────────────────────────────────────────
   const generate = async () => {
     setLoading(true)
-    setError(false)
+    setError(null)
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 60000)
     try {
@@ -576,10 +578,10 @@ export default function DocumentFactoryClient({
         signal: controller.signal,
       })
       clearTimeout(timeout)
-      if (!res.ok) throw new Error()
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       setDocuments(await res.json())
-    } catch {
-      setError(true)
+    } catch (err) {
+      setError(getErrorMessage(err, 'documents'))
     } finally {
       setLoading(false)
     }
@@ -693,7 +695,11 @@ export default function DocumentFactoryClient({
       <p style={{ color: '#6B7280', fontSize: 12, marginTop: 8 }}>
         Your documents will be generated in German + {langLabel} {langFlag}. Switch language in the navbar above to change.
       </p>
-      {error && <p style={{ color: '#EF4444', fontSize: 13, marginTop: 8 }}>Something went wrong. Please try again.</p>}
+      {error && (
+        <div style={{ marginTop: 8 }}>
+          <ErrorMessage message={error} onRetry={generate} onDismiss={() => setError(null)} />
+        </div>
+      )}
     </div>
   )
 }

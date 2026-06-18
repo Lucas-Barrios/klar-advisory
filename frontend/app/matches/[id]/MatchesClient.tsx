@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { Search, Clock, Lock } from 'lucide-react'
+import ErrorMessage from '@/components/ErrorMessage'
+import { getErrorMessage } from '@/lib/errors'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
@@ -38,6 +40,7 @@ export default function MatchesClient({
   paymentSuccess?: boolean
 }) {
   const [checkoutLoading, setCheckoutLoading] = useState(false)
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
 
   const positions = matches?.matched_positions ?? []
   const lockedCount = matches?.locked_count ?? 0
@@ -46,19 +49,22 @@ export default function MatchesClient({
 
   const handleUnlock = async () => {
     setCheckoutLoading(true)
+    setCheckoutError(null)
     try {
       const res = await fetch(`${API_URL}/api/payments/create-checkout-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ diagnostic_id: id, product: 'matches' }),
       })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       if (data.url) {
         window.location.href = data.url
       } else {
         setCheckoutLoading(false)
       }
-    } catch {
+    } catch (err) {
+      setCheckoutError(getErrorMessage(err, 'payment'))
       setCheckoutLoading(false)
     }
   }
@@ -366,6 +372,11 @@ export default function MatchesClient({
             >
               {checkoutLoading ? 'Redirecting…' : `Unlock all ${positions.length + lockedCount} matches — €19`}
             </button>
+            {checkoutError && (
+              <div style={{ marginTop: 16 }}>
+                <ErrorMessage message={checkoutError} onDismiss={() => setCheckoutError(null)} onRetry={handleUnlock} />
+              </div>
+            )}
           </div>
         )}
 

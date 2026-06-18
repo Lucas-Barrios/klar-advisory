@@ -1064,37 +1064,50 @@ export default function AdminPage() {
 
   async function handleReview(id: string, status: 'approved' | 'rejected', reviewerNotes: string) {
     if (!adminToken) return
-    const res = await fetch(`${API_URL}/api/admin/diagnostics/${id}/review`, {
-      method: 'POST',
-      headers: adminHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ status, reviewer_notes: reviewerNotes }),
-    })
-    if (isAuthFailure(res.status)) { clearAdminSession(); return }
-    if (!res.ok) return
+    try {
+      const res = await fetch(`${API_URL}/api/admin/diagnostics/${id}/review`, {
+        method: 'POST',
+        headers: adminHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ status, reviewer_notes: reviewerNotes }),
+      })
+      if (isAuthFailure(res.status)) { clearAdminSession(); return }
+      if (!res.ok) {
+        setToast({ message: `Failed to ${status} — server returned ${res.status}. Try again.`, type: 'error' })
+        return
+      }
 
-    // Find next pending before updating state
-    const allPending = filteredRows.filter((r) => !isReviewed(r))
-    const idx = allPending.findIndex((r) => r.id === id)
-    const nextPending = allPending[idx + 1] ?? allPending[idx - 1] ?? null
+      // Find next pending before updating state
+      const allPending = filteredRows.filter((r) => !isReviewed(r))
+      const idx = allPending.findIndex((r) => r.id === id)
+      const nextPending = allPending[idx + 1] ?? allPending[idx - 1] ?? null
 
-    setRows((prev) => prev.map((r) => r.id === id ? { ...r, status } : r))
-    setSelected(nextPending)
-    setToast(status === 'approved'
-      ? { message: '✓ Approved — student will be notified', type: 'success' }
-      : { message: '✕ Rejected', type: 'error' }
-    )
-    fetchStats()
+      setRows((prev) => prev.map((r) => r.id === id ? { ...r, status } : r))
+      setSelected(nextPending)
+      setToast(status === 'approved'
+        ? { message: '✓ Approved — student will be notified', type: 'success' }
+        : { message: '✕ Rejected', type: 'error' }
+      )
+      fetchStats()
+    } catch {
+      setToast({ message: 'Network error — check your connection and try again.', type: 'error' })
+    }
   }
 
   async function handleMarkBooked(id: string) {
     if (!adminToken) return
-    const res = await fetch(`${API_URL}/api/admin/diagnostics/${id}/mark-booked`, { method: 'POST', headers: adminHeaders() })
-    if (isAuthFailure(res.status)) { clearAdminSession(); return }
-    if (res.ok) {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/diagnostics/${id}/mark-booked`, { method: 'POST', headers: adminHeaders() })
+      if (isAuthFailure(res.status)) { clearAdminSession(); return }
+      if (!res.ok) {
+        setToast({ message: `Failed to record booking — server returned ${res.status}.`, type: 'error' })
+        return
+      }
       setRows((prev) => prev.map((r) => r.id === id ? { ...r, consultation_booked: true } : r))
       setSelected((prev) => prev?.id === id ? { ...prev, consultation_booked: true } : prev)
       setToast({ message: 'Booking recorded — conversion tracked', type: 'success' })
       fetchStats()
+    } catch {
+      setToast({ message: 'Network error — check your connection and try again.', type: 'error' })
     }
   }
 

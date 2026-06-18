@@ -10,6 +10,8 @@ import {
 } from 'lucide-react'
 import GermanFlag from '@/components/GermanFlag'
 import LevelIndicator from '@/components/LevelIndicator'
+import ErrorMessage from '@/components/ErrorMessage'
+import { getErrorMessage } from '@/lib/errors'
 
 type QuestionType = 'text' | 'email' | 'choice'
 
@@ -248,6 +250,13 @@ export default function DiagnosticPage() {
   const [revealedCount, setRevealedCount] = useState(0)
   const [error, setError] = useState('')
   const [consentChecked, setConsentChecked] = useState(false)
+  const [consentHintVisible, setConsentHintVisible] = useState(false)
+
+  useEffect(() => {
+    if (!consentHintVisible) return
+    const t = setTimeout(() => setConsentHintVisible(false), 3000)
+    return () => clearTimeout(t)
+  }, [consentHintVisible])
 
   const question = questions[currentQ]
   const progressPct = (currentQ / questions.length) * 100
@@ -343,7 +352,7 @@ export default function DiagnosticPage() {
       router.push(`/results/${data.diagnostic_id}`)
     } catch (err) {
       console.error('Submission error:', err)
-      setError(`Error: ${err instanceof Error ? err.message : JSON.stringify(err)}`)
+      setError(getErrorMessage(err, 'diagnostic'))
       setIsLoading(false)
     }
   }
@@ -386,23 +395,11 @@ export default function DiagnosticPage() {
         </div>
 
         {error && (
-          <div
-            className="mt-6 rounded-xl p-4 text-sm"
-            style={{
-              background: 'rgba(220,38,38,0.1)',
-              border: '1px solid rgba(220,38,38,0.3)',
-              color: '#DC2626',
-              maxWidth: '400px',
-            }}
-          >
-            {error}
-            <button
-              onClick={() => setIsLoading(false)}
-              className="block mt-2 underline text-sm"
-              style={{ color: '#DC2626' }}
-            >
-              {f.backBtn}
-            </button>
+          <div className="mt-6" style={{ maxWidth: '400px', width: '100%' }}>
+            <ErrorMessage
+              message={error}
+              onRetry={() => setIsLoading(false)}
+            />
           </div>
         )}
       </div>
@@ -688,37 +685,55 @@ export default function DiagnosticPage() {
 
           {/* Consent checkbox — required on last step */}
           {isLastQuestion && (
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '10px',
-                marginTop: '20px',
-                maxWidth: '560px',
-                cursor: 'pointer',
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={consentChecked}
-                onChange={(e) => setConsentChecked(e.target.checked)}
+            <div style={{ marginTop: '20px', maxWidth: '560px' }}>
+              <label
                 style={{
-                  marginTop: '2px',
-                  accentColor: 'var(--accent)',
-                  width: '16px',
-                  height: '16px',
-                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
                   cursor: 'pointer',
                 }}
-              />
-              <span style={{ fontSize: '12px', color: '#6B7280', lineHeight: 1.5 }}>
-                I agree that Klar may process my personal data to generate a Germany readiness assessment, as described in the{' '}
-                <a href="/privacy" style={{ color: 'var(--accent-light)', textDecoration: 'underline' }}>
-                  Privacy Policy
-                </a>
-                . I understand this data will be reviewed by a human consultant before delivery.
-              </span>
-            </label>
+              >
+                <input
+                  type="checkbox"
+                  checked={consentChecked}
+                  onChange={(e) => {
+                    setConsentChecked(e.target.checked)
+                    if (e.target.checked) setConsentHintVisible(false)
+                  }}
+                  style={{
+                    marginTop: '2px',
+                    accentColor: 'var(--accent)',
+                    width: '16px',
+                    height: '16px',
+                    flexShrink: 0,
+                    cursor: 'pointer',
+                  }}
+                />
+                <span style={{ fontSize: '12px', color: '#6B7280', lineHeight: 1.5 }}>
+                  I agree that Klar may process my personal data to generate a Germany readiness assessment, as described in the{' '}
+                  <a href="/privacy" style={{ color: 'var(--accent-light)', textDecoration: 'underline' }}>
+                    Privacy Policy
+                  </a>
+                  . I understand this data will be reviewed by a human consultant before delivery.
+                </span>
+              </label>
+              <p
+                aria-live="polite"
+                style={{
+                  color: '#F59E0B',
+                  fontSize: '13px',
+                  marginTop: '6px',
+                  paddingLeft: '26px',
+                  opacity: consentHintVisible ? 1 : 0,
+                  transition: consentHintVisible ? 'none' : 'opacity 0.5s ease',
+                  pointerEvents: 'none',
+                  minHeight: '20px',
+                }}
+              >
+                Please agree to the data sharing terms above to continue.
+              </p>
+            </div>
           )}
 
           {/* Navigation */}
@@ -740,25 +755,30 @@ export default function DiagnosticPage() {
             {(question.type === 'text' || question.type === 'email') && (
               <>
                 {isLastQuestion ? (
-                  <button
-                    onClick={() => advance()}
-                    disabled={(question.required && !textInput) || !consentChecked}
-                    className="w-full font-semibold rounded-full transition-all"
-                    style={{
-                      background: 'var(--accent)',
-                      color: 'white',
-                      padding: '16px',
-                      fontSize: '1.125rem',
-                      border: 'none',
-                      opacity: (question.required && !textInput) || !consentChecked ? 0.4 : 1,
-                      cursor: (question.required && !textInput) || !consentChecked ? 'not-allowed' : 'pointer',
-                      maxWidth: '560px',
-                    }}
-                    onMouseEnter={(e) => { if (!((question.required && !textInput) || !consentChecked)) (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-light)' }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent)' }}
+                  <div
+                    onClick={() => { if (!consentChecked) setConsentHintVisible(true) }}
+                    style={{ maxWidth: '560px', width: '100%' }}
                   >
-                    {f.submitBtn}
-                  </button>
+                    <button
+                      onClick={() => advance()}
+                      disabled={(question.required && !textInput) || !consentChecked}
+                      className="w-full font-semibold rounded-full transition-all"
+                      style={{
+                        background: 'var(--accent)',
+                        color: 'white',
+                        padding: '16px',
+                        fontSize: '1.125rem',
+                        border: 'none',
+                        opacity: (question.required && !textInput) || !consentChecked ? 0.4 : 1,
+                        cursor: (question.required && !textInput) || !consentChecked ? 'not-allowed' : 'pointer',
+                        width: '100%',
+                      }}
+                      onMouseEnter={(e) => { if (!((question.required && !textInput) || !consentChecked)) (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-light)' }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent)' }}
+                    >
+                      {f.submitBtn}
+                    </button>
+                  </div>
                 ) : (
                   <button
                     onClick={() => advance()}
@@ -779,38 +799,35 @@ export default function DiagnosticPage() {
             )}
 
             {question.type === 'choice' && isLastQuestion && (
-              <button
-                onClick={() => advance(selectedValue)}
-                disabled={!selectedValue || !consentChecked}
-                className="font-semibold rounded-full transition-all"
-                style={{
-                  background: 'var(--accent)',
-                  color: 'white',
-                  padding: '14px 28px',
-                  fontSize: '1rem',
-                  border: 'none',
-                  opacity: !selectedValue || !consentChecked ? 0.4 : 1,
-                  cursor: !selectedValue || !consentChecked ? 'not-allowed' : 'pointer',
-                }}
-                onMouseEnter={(e) => { if (selectedValue && consentChecked) (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-light)' }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent)' }}
-              >
-                {f.submitBtn}
-              </button>
+              <div onClick={() => { if (!consentChecked) setConsentHintVisible(true) }}>
+                <button
+                  onClick={() => advance(selectedValue)}
+                  disabled={!selectedValue || !consentChecked}
+                  className="font-semibold rounded-full transition-all"
+                  style={{
+                    background: 'var(--accent)',
+                    color: 'white',
+                    padding: '14px 28px',
+                    fontSize: '1rem',
+                    border: 'none',
+                    opacity: !selectedValue || !consentChecked ? 0.4 : 1,
+                    cursor: !selectedValue || !consentChecked ? 'not-allowed' : 'pointer',
+                  }}
+                  onMouseEnter={(e) => { if (selectedValue && consentChecked) (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-light)' }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent)' }}
+                >
+                  {f.submitBtn}
+                </button>
+              </div>
             )}
           </div>
 
           {error && (
-            <div
-              className="mt-6 rounded-xl p-4 text-sm"
-              style={{
-                background: 'rgba(220,38,38,0.1)',
-                border: '1px solid rgba(220,38,38,0.3)',
-                color: '#DC2626',
-                maxWidth: '560px',
-              }}
-            >
-              {error}
+            <div className="mt-6" style={{ maxWidth: '560px' }}>
+              <ErrorMessage
+                message={error}
+                onDismiss={() => setError('')}
+              />
             </div>
           )}
         </div>
