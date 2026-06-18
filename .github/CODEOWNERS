@@ -1,0 +1,18 @@
+# CODEOWNERS — Prompt Review Reminders
+#
+# GitHub will request a review from the owner listed here when these files
+# are changed in a PR. For a solo-maintainer repo this means you are
+# self-assigned — use it as a mandatory pause: re-read the full diff line
+# by line before merging, not just the version bump.
+#
+# Enforced gate: the CI workflow (ci.yml) runs pytest + check_prompt_drift.py
+# and must pass before merge. That is the real enforceable gate.
+
+# Every prompt file requires explicit self-review
+/backend/agents/germany_diagnostic.py @Lucas-Barrios
+/backend/agents/ausbildung_matcher.py @Lucas-Barrios
+/backend/agents/document_factory.py @Lucas-Barrios
+
+# Version-tracking files must also be reviewed together with prompt changes
+/backend/services/diagnostic_versions.py @Lucas-Barrios
+/backend/scripts/.prompt_hashes @Lucas-Barrios

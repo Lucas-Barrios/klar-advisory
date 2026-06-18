@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test suite + prompt drift
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt stripe
+
+      - name: Run test suite
+        working-directory: backend
+        run: python -m pytest tests/ -v
+
+      - name: Check prompt drift
+        working-directory: backend
+        run: python scripts/check_prompt_drift.py
