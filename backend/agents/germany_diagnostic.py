@@ -62,6 +62,39 @@ Be honest. Be warm. This is career-changing advice.
 RESPOND ONLY WITH VALID JSON. No markdown, no text outside the JSON."""
 
 
+# Patterns in next_step_message that indicate manipulative urgency / dark-pattern copy.
+# The SYSTEM_PROMPT intentionally calibrates urgency ("acting now", "how competitive spots are")
+# but these specific escalated patterns go beyond that framing and would erode student trust.
+# The check is a warning gate, not a hard blocker — the router logs the flag and the human
+# reviewer can inspect the flagged output. Patterns are lowercased for case-insensitive match.
+NEXT_STEP_MESSAGE_URGENCY_BLOCKLIST: list[str] = [
+    "last chance",
+    "spots are filling",
+    "limited spots remaining",
+    "limited spots left",
+    "slots are running out",
+    "don't wait any longer",
+    "act immediately",
+    "hurry up",
+    "hurry before",
+    "no time to waste",
+    "sign up now or",
+    "register now or",
+]
+
+
+def check_next_step_message_safety(message: str | None) -> list[str]:
+    """Return a list of blocklisted phrases found in message (empty if clean).
+
+    Returns the matched phrases so callers can log or surface them without
+    hard-blocking the diagnostic output. An empty list means the message is clean.
+    """
+    if not message:
+        return []
+    lowered = message.lower()
+    return [phrase for phrase in NEXT_STEP_MESSAGE_URGENCY_BLOCKLIST if phrase in lowered]
+
+
 class DiagnosticAIError(RuntimeError):
     def __init__(
         self,

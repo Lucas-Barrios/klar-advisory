@@ -13,6 +13,13 @@ from services.redaction import redact_sensitive_text
 
 EVALUATION_PASS_THRESHOLD = 0.8
 
+# Tolerance band for overall_score comparison: a predicted score within ±10 points
+# of the expected value counts as accurate. The score is continuous (0–100) and
+# cannot be derived exactly from the rubric for most profiles, so exact-match
+# would be meaningless. ±10 is derived from the rubric's 20-point CEFR step size
+# (e.g. A2=35→B1=55) and the 15% weight of the most discretionary dimension.
+OVERALL_SCORE_TOLERANCE = 10
+
 PII_EVALUATION_KEYS = {
     "name",
     "full_name",
@@ -118,6 +125,25 @@ def field_accuracy(expected: Any, predicted: Any) -> float | None:
     return 1.0 if normalized_expected == normalize_text(predicted) else 0.0
 
 
+def score_within_tolerance(
+    expected: Any,
+    predicted: Any,
+    *,
+    tolerance: int = OVERALL_SCORE_TOLERANCE,
+) -> float | None:
+    """Return 1.0 if |predicted - expected| <= tolerance, 0.0 otherwise, None if no expected."""
+    if expected is None:
+        return None
+    try:
+        exp_val = float(expected)
+        pred_val = float(predicted) if predicted is not None else None
+    except (TypeError, ValueError):
+        return None
+    if pred_val is None:
+        return 0.0
+    return 1.0 if abs(pred_val - exp_val) <= tolerance else 0.0
+
+
 def calculate_flag_recall(expected_flags: Any, predicted_flags: Any) -> float:
     expected = normalize_flags(expected_flags)
     if not expected:
@@ -144,6 +170,15 @@ def compare_prediction(
         "timeline": field_accuracy(
             example.get("expected_timeline"),
             prediction.get("predicted_timeline"),
+        ),
+        # overall_score is scored with a ±OVERALL_SCORE_TOLERANCE point tolerance band
+        # rather than exact match, since it's a continuous AI estimate not a discrete label.
+        # Returns None when expected_overall_score is absent (most DB-stored examples lack it
+        # until a migration adds the column; the runner injects it from seed data at eval time).
+        "overall_score": score_within_tolerance(
+            example.get("expected_overall_score"),
+            prediction.get("predicted_overall_score"),
+            tolerance=OVERALL_SCORE_TOLERANCE,
         ),
     }
     flag_recall = calculate_flag_recall(
@@ -225,6 +260,22 @@ def calculate_summary_metrics(results: list[dict[str, Any]]) -> dict[str, Any]:
     costs = [float(row.get("estimated_cost") or 0) for row in results]
     passed = sum(1 for row in results if row.get("passed") is True)
 
+    # overall_score accuracy: fraction of examples where predicted_overall_score is
+    # within ±OVERALL_SCORE_TOLERANCE of expected_overall_score. Only counted when
+    # expected_overall_score is present (derived from rubric in seed data).
+    overall_score_hits = [
+        1.0
+        for row in results
+        if row.get("expected_overall_score") is not None
+        and score_within_tolerance(
+            row.get("expected_overall_score"),
+            row.get("predicted_overall_score"),
+        ) == 1.0
+    ]
+    overall_score_total = sum(
+        1 for row in results if row.get("expected_overall_score") is not None
+    )
+
     return {
         "evaluated_examples": total,
         "pathway_accuracy": round(len(pathway_scores) / pathway_total, 4)
@@ -236,6 +287,10 @@ def calculate_summary_metrics(results: list[dict[str, Any]]) -> dict[str, Any]:
         "timeline_accuracy": round(len(timeline_scores) / timeline_total, 4)
         if timeline_total
         else 0,
+        "overall_score_accuracy": round(len(overall_score_hits) / overall_score_total, 4)
+        if overall_score_total
+        else None,
+        "overall_score_examples_with_expected": overall_score_total,
         "flag_recall": average(flag_recalls),
         "overall_pass_rate": round(passed / total, 4),
         "average_score": average(scores),

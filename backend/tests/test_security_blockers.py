@@ -242,5 +242,67 @@ class SecurityBlockerTests(unittest.TestCase):
         self.assertEqual(with_full_name["students"]["name"], "Legacy Name")
 
 
+class NextStepMessageSafetyTests(unittest.TestCase):
+    """next_step_message must not contain manipulative urgency / dark-pattern copy."""
+
+    def setUp(self):
+        from agents.germany_diagnostic import (
+            NEXT_STEP_MESSAGE_URGENCY_BLOCKLIST,
+            check_next_step_message_safety,
+        )
+        self.check = check_next_step_message_safety
+        self.blocklist = NEXT_STEP_MESSAGE_URGENCY_BLOCKLIST
+
+    def test_clean_warm_message_passes(self):
+        """Calibrated urgency from the SYSTEM_PROMPT (acting now, competitive spots) is allowed."""
+        msg = (
+            "Hi Maria, given how competitive spots are and how close you already are "
+            "to being ready, acting now makes a real difference. Book a free consultation "
+            "and let's build your personalised roadmap together."
+        )
+        self.assertEqual(self.check(msg), [])
+
+    def test_last_chance_is_blocked(self):
+        self.assertIn("last chance", self.check("This is your last chance to secure a spot."))
+
+    def test_spots_are_filling_is_blocked(self):
+        self.assertIn(
+            "spots are filling",
+            self.check("Spots are filling fast — register today!"),
+        )
+
+    def test_limited_spots_remaining_is_blocked(self):
+        self.assertIn(
+            "limited spots remaining",
+            self.check("There are limited spots remaining for this intake."),
+        )
+
+    def test_dont_wait_any_longer_is_blocked(self):
+        self.assertIn(
+            "don't wait any longer",
+            self.check("Don't wait any longer — reach out now."),
+        )
+
+    def test_act_immediately_is_blocked(self):
+        self.assertIn("act immediately", self.check("You must act immediately to secure your place."))
+
+    def test_check_is_case_insensitive(self):
+        self.assertIn("last chance", self.check("LAST CHANCE to book your consultation!"))
+
+    def test_none_message_returns_empty(self):
+        self.assertEqual(self.check(None), [])
+
+    def test_empty_message_returns_empty(self):
+        self.assertEqual(self.check(""), [])
+
+    def test_multiple_violations_all_returned(self):
+        msg = "Last chance! Spots are filling fast. Don't wait any longer."
+        violations = self.check(msg)
+        self.assertGreaterEqual(len(violations), 2)
+
+    def test_blocklist_is_nonempty(self):
+        self.assertGreater(len(self.blocklist), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

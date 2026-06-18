@@ -18,6 +18,11 @@ The model is asked to recommend 3 specific programs or resources with URLs but i
 
 Mitigation in place: `SYSTEM_PROMPT` (as of `germany_diagnostic_prompt_v3`) instructs the model to return `null` for `url` unless it is certain the link points to a real, active page at a well-known institution. The UI shows a disclaimer near recommendations. This reduces but does not eliminate the risk — always verify program names and links independently before applying.
 
+**Measured URL hallucination rate (2026-06-18):** 0 out of 60 URLs emitted were on unrecognised domains, across 20 approved diagnostics (run `scripts/measure_url_hallucination_rate.py` to reproduce). The model emits ~3 URLs per diagnostic and always from recognised German institution domains (DAAD, Goethe-Institut, Make it in Germany, BIBB, AHK, DW, Ausbildung.de, etc.). Residual risk: domain-level check only — specific URL paths (e.g., database IDs in BIBB profile URLs) are not HTTP-verified. See `docs/failure_examples.md` (Failure 3) for a concrete example. Rerun this measurement after any SYSTEM_PROMPT change to the URL grounding rule.
+
+**Limitation: Response relevance is not automatically measured (deferred).**
+There is currently no automated metric for whether the diagnostic summary and roadmap are *relevant* to the student's specific profile — only routing fields (pathway, german_level, timeline) are compared against ground-truth labels. Building a reliable relevance metric requires either (a) an LLM-as-judge rubric (introduces its own hallucination risk) or (b) a human-annotated relevance scale (requires 50+ rated examples). Both are deferred until the system accumulates sufficient approved diagnostics to support meaningful annotation. Until then, relevance is assessed via the human review gate (EU AI Act Art 14 — all diagnostics are reviewed before being surfaced to students).
+
 ## UC-02 — Ausbildung Position Matching
 
 **Limitation: German language requirements are AI-estimated, not employer-stated.**
