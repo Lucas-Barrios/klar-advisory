@@ -12,8 +12,11 @@ from typing import Any
 
 AI_PROVIDER = "anthropic"
 AI_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
-# Haiku is sufficient for cheap classification/routing calls (5-way sector mapping)
-AI_MODEL_HAIKU = os.getenv("ANTHROPIC_HAIKU_MODEL", "claude-haiku-4-5")
+# Haiku is sufficient for cheap classification/routing calls (5-way sector mapping).
+# Use the dated snapshot ID: Haiku 4.5 predates the 4.6 generation so its canonical
+# pinned form is claude-haiku-4-5-20251001. The bare "claude-haiku-4-5" is a
+# convenience alias, not the pinned snapshot (per platform.claude.com/docs/en/about-claude/models/model-ids-and-versions).
+AI_MODEL_HAIKU = os.getenv("ANTHROPIC_HAIKU_MODEL", "claude-haiku-4-5-20251001")
 REQUEST_TYPE_GERMANY_DIAGNOSTIC = "germany_diagnostic"
 REQUEST_TYPE_AUSBILDUNG_SECTOR = "ausbildung_sector"
 REQUEST_TYPE_AUSBILDUNG_MATCH = "ausbildung_match"

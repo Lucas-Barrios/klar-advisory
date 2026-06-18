@@ -32,9 +32,9 @@ The exact model snapshot used for each diagnostic is stored in `diagnostics.ai_m
 
 ### Are these model IDs pinned or rolling aliases?
 
-**`claude-sonnet-4-6`** is a fully pinned snapshot identifier per the Anthropic API documentation. The SDK explicitly documents this string as complete — no date suffix should be appended (any date-suffixed variant such as `claude-sonnet-4-6-20251114` would be a training-data artefact, not a valid ID). The string as-is is the stable, pinned identifier.
+**`claude-sonnet-4-6`** is a fully pinned snapshot. Per [platform.claude.com/docs/en/about-claude/models/model-ids-and-versions](https://platform.claude.com/docs/en/about-claude/models/model-ids-and-versions): *"Starting with the Claude 4.6 generation, model IDs use a dateless format… A 4.6-generation ID such as `claude-sonnet-4-6` is not an alias. It is the snapshot."* No date suffix exists or should be appended.
 
-**`claude-haiku-4-5`** is the correct callable model ID per Anthropic API documentation — the string is complete as-is and should not have a date suffix appended. The dated form `claude-haiku-4-5-20251001` resolves to the same model and is present in `MODEL_PRICING` only to handle any legacy telemetry rows that may carry it; new code should always use `claude-haiku-4-5`.
+**`claude-haiku-4-5-20251001`** is the pinned snapshot for Haiku 4.5. Haiku 4.5 predates the 4.6 generation, so it follows the pre-4.6 convention. Per the same page: *"Models before the 4.6 generation include a snapshot date in the ID… For example: `claude-sonnet-4-5-20250929`, `claude-haiku-4-5-20251001`"* and *"On the Claude API, these models also have shorter aliases (for example, `claude-sonnet-4-5`) that point to the most recent dated snapshot for that minor version."* The bare `claude-haiku-4-5` is that convenience alias — it is not the pinned ID. `AI_MODEL_HAIKU` therefore defaults to `claude-haiku-4-5-20251001`. Both the dated and undated forms are present in `MODEL_PRICING` so cost is calculated correctly if either appears in legacy telemetry rows.
 
 ### Model deprecation process
 
