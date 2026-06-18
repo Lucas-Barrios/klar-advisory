@@ -94,14 +94,15 @@ async def stripe_webhook(request: Request):
         session = event["data"]["object"]
 
         # Verify Stripe confirms the payment was actually collected before unlocking.
-        if session.get("payment_status") != "paid":
+        if session.payment_status != "paid":
             logger.warning(
                 "checkout.session.completed received but payment_status=%s — ignoring",
-                session.get("payment_status"),
+                session.payment_status,
             )
             return {"status": "ok"}
 
-        metadata = session.get("metadata", {})
+        # session.metadata may be a StripeObject in newer SDK versions; dict() handles both.
+        metadata = dict(session.metadata) if session.metadata else {}
         diagnostic_id = metadata.get("diagnostic_id")
         product = metadata.get("product")
         target_language = metadata.get("target_language", "en")
@@ -159,7 +160,8 @@ def verify_session(session_id: str):
     if session.payment_status != "paid":
         return {"documents_unlocked": False, "matches_unlocked": False, "diagnostic_id": None}
 
-    metadata = session.metadata or {}
+    # session.metadata may be a StripeObject in newer SDK versions; dict() handles both.
+    metadata = dict(session.metadata) if session.metadata else {}
     diagnostic_id = metadata.get("diagnostic_id")
     product = metadata.get("product")
 
