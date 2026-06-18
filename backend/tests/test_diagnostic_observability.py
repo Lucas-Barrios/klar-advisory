@@ -6,12 +6,32 @@ from unittest.mock import patch
 
 from fastapi import BackgroundTasks, HTTPException
 from pydantic import ValidationError
+from starlette.requests import Request as StarletteRequest
 
 from agents.germany_diagnostic import DiagnosticAIError, run_diagnostic
 from models.schemas import ReviewAction, StudentProfileInput
 from routers import diagnostic as diagnostic_router
 from services.ai_observability import build_usage_event
 from services.progress_auth import verify_progress_token
+
+
+def _make_test_request(ip: str = "test-direct-call") -> StarletteRequest:
+    """Minimal starlette Request for tests that call create_diagnostic directly.
+
+    slowapi requires the first parameter to be a real starlette.requests.Request
+    (it checks isinstance). The scope only needs the fields slowapi accesses:
+    type, client (for IP key), and app (for app.state.limiter).
+    """
+    from main import app as klar_app
+    return StarletteRequest({
+        "type": "http",
+        "method": "POST",
+        "path": "/api/diagnostic/",
+        "query_string": b"",
+        "headers": [],
+        "client": (ip, 50000),
+        "app": klar_app,
+    })
 
 
 def sample_student() -> dict:
@@ -199,7 +219,9 @@ class DiagnosticObservabilityTests(unittest.TestCase):
                 return_value=sample_diagnostic_output(),
             ):
                 response = asyncio.run(
-                    diagnostic_router.create_diagnostic(student, BackgroundTasks())
+                    diagnostic_router.create_diagnostic(
+                        _make_test_request("obs-success"), student, BackgroundTasks()
+                    )
                 )
 
         self.assertEqual(response.diagnostic_id, "diagnostic-1")
@@ -252,7 +274,9 @@ class DiagnosticObservabilityTests(unittest.TestCase):
             ):
                 with self.assertRaises(HTTPException) as ctx:
                     asyncio.run(
-                        diagnostic_router.create_diagnostic(student, BackgroundTasks())
+                        diagnostic_router.create_diagnostic(
+                            _make_test_request("obs-failure"), student, BackgroundTasks()
+                        )
                     )
 
         self.assertEqual(ctx.exception.status_code, 502)

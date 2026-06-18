@@ -247,13 +247,6 @@ class EdgeCaseProfileTests(unittest.TestCase):
             patch("routers.diagnostic.notify_n8n"),
             patch("routers.diagnostic.run_ausbildung_matching"),
         ):
-            from fastapi import BackgroundTasks
-
-            result = diagnostic_router.create_diagnostic.__wrapped__(
-                student, BackgroundTasks()
-            ) if hasattr(diagnostic_router.create_diagnostic, "__wrapped__") else None
-
-            # If the endpoint is not easily callable directly, use the lower-level path:
             # Validate consent check passes
             self.assertTrue(student.consent_given, f"{case['id']}: consent_given must be True")
 

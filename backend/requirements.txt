@@ -1,4 +1,6 @@
 annotated-doc==0.0.4
+limits==3.14.0
+slowapi==0.1.9
 annotated-types==0.7.0
 anthropic==0.109.1
 anyio==4.13.0

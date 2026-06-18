@@ -1,5 +1,6 @@
 import os
 import unittest
+import unittest.mock
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -302,6 +303,209 @@ class NextStepMessageSafetyTests(unittest.TestCase):
 
     def test_blocklist_is_nonempty(self):
         self.assertGreater(len(self.blocklist), 0)
+
+
+class AdminAuthAuditLoggingTests(unittest.TestCase):
+    """Failed admin auth must produce an audit_log row that never contains
+    the supplied token value — only failure_type, client IP, and timestamp.
+
+    Covers the two failure branches:
+      - missing token  → HTTP 401
+      - invalid token  → HTTP 403
+    """
+
+    def setUp(self):
+        self.env_patch = patch.dict(os.environ, {"ADMIN_API_TOKEN": "correct-admin-token"})
+        self.env_patch.start()
+        self.client = TestClient(app)
+
+    def tearDown(self):
+        self.env_patch.stop()
+
+    def _make_supabase_with_audit_capture(self):
+        """Return a (fake_supabase, captured_inserts) pair.
+
+        Uses FakeSupabase from the test module so inserts are recorded in
+        fake_supabase.inserts['audit_log'].
+        """
+        fake = FakeSupabase()
+        return fake
+
+    def test_missing_token_logs_audit_row(self):
+        """No Authorization header → 401 and one audit_log row with failure_type='missing'."""
+        import services.admin_auth as admin_auth_module
+
+        fake_supa = self._make_supabase_with_audit_capture()
+        with patch.object(admin_auth_module, "get_supabase", return_value=fake_supa):
+            response = self.client.get("/api/admin/diagnostics")
+
+        self.assertEqual(response.status_code, 401)
+        rows = fake_supa.inserts.get("audit_log", [])
+        self.assertGreaterEqual(len(rows), 1, "Expected at least one audit_log insert")
+        auth_rows = [r for r in rows if r.get("action") == "admin_auth_failure"]
+        self.assertEqual(len(auth_rows), 1, "Expected exactly one admin_auth_failure row")
+        self.assertEqual(auth_rows[0]["details"]["failure_type"], "missing")
+
+    def test_invalid_token_logs_audit_row(self):
+        """Wrong token → 403 and one audit_log row with failure_type='invalid'."""
+        import services.admin_auth as admin_auth_module
+
+        supplied_token = "definitely-wrong-token-xyz"
+        fake_supa = self._make_supabase_with_audit_capture()
+        with patch.object(admin_auth_module, "get_supabase", return_value=fake_supa):
+            response = self.client.get(
+                "/api/admin/diagnostics",
+                headers={"Authorization": f"Bearer {supplied_token}"},
+            )
+
+        self.assertEqual(response.status_code, 403)
+        rows = fake_supa.inserts.get("audit_log", [])
+        auth_rows = [r for r in rows if r.get("action") == "admin_auth_failure"]
+        self.assertEqual(len(auth_rows), 1)
+        self.assertEqual(auth_rows[0]["details"]["failure_type"], "invalid")
+
+        # Critical: the supplied token must never appear in the logged row
+        serialized_row = str(auth_rows[0])
+        self.assertNotIn(
+            supplied_token,
+            serialized_row,
+            "The supplied token value must not be persisted in the audit_log row",
+        )
+
+    def test_valid_token_produces_no_failure_audit_row(self):
+        """Correct token must not produce any admin_auth_failure audit rows."""
+        import services.admin_auth as admin_auth_module
+
+        fake_supa = FakeSupabase()
+        with (
+            patch.object(admin_auth_module, "get_supabase", return_value=fake_supa),
+            patch.object(admin_router, "get_supabase", return_value=fake_supa),
+        ):
+            response = self.client.get(
+                "/api/admin/stats",
+                headers={"Authorization": "Bearer correct-admin-token"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        auth_rows = [
+            r for r in fake_supa.inserts.get("audit_log", [])
+            if r.get("action") == "admin_auth_failure"
+        ]
+        self.assertEqual(len(auth_rows), 0, "Successful auth must not produce failure audit rows")
+
+
+class DiagnosticRateLimitTests(unittest.TestCase):
+    """POST /api/diagnostic/ must enforce 5 requests/hour per IP.
+    The 6th request within the window must be rejected with 429 and a
+    human-readable message — not a raw library error."""
+
+    _VALID_PAYLOAD = {
+        "name": "Rate Limit Test",
+        "email": "ratelimit@example.com",
+        "country": "Brazil",
+        "pathway": "ausbildung",
+        "german_level": "B1",
+        "education_level": "bachelor",
+        "work_experience_years": 2,
+        "timeline": "1_year",
+        "financial_situation": "Some savings",
+        "consent_given": True,
+    }
+
+    _MOCK_DIAGNOSTIC_OUTPUT = {
+        "overall_score": 52,
+        "language_score": 35,
+        "education_score": 65,
+        "pathway_fit_score": 55,
+        "timeline_score": 60,
+        "financial_score": 50,
+        "documentation_score": 55,
+        "summary": "Rate limit test diagnostic.",
+        "next_step_message": "Hi Rate Limit Test, book a consultation.",
+        "roadmap": [{"month": 1, "title": "Start", "description": "Begin", "action_items": []}],
+        "recommendations": [],
+        "_ai_usage": None,
+    }
+
+    def setUp(self):
+        from services.rate_limiter import limiter
+        limiter._storage.reset()
+        self.client = TestClient(app)
+
+    def _make_supabase_mock(self):
+        mock_supa = unittest.mock.MagicMock()
+        mock_supa.table.return_value.insert.return_value.execute.return_value = (
+            SimpleNamespace(data=[{"id": "test-uuid-001"}])
+        )
+        mock_supa.table.return_value.update.return_value.execute.return_value = (
+            SimpleNamespace(data=[])
+        )
+        return mock_supa
+
+    def test_first_five_requests_succeed_sixth_is_rejected(self):
+        """First 5 requests must not be rate-limited; the 6th must return 429."""
+        supabase_mock = self._make_supabase_mock()
+
+        with (
+            patch.object(diagnostic_router, "get_supabase", return_value=supabase_mock),
+            patch.object(diagnostic_router, "run_diagnostic", return_value=self._MOCK_DIAGNOSTIC_OUTPUT),
+        ):
+            for i in range(5):
+                resp = self.client.post("/api/diagnostic/", json=self._VALID_PAYLOAD)
+                self.assertNotEqual(resp.status_code, 429, f"Request {i+1} should not be rate-limited")
+
+            resp = self.client.post("/api/diagnostic/", json=self._VALID_PAYLOAD)
+            self.assertEqual(resp.status_code, 429, "6th request must be rate-limited")
+            body = resp.json()
+            self.assertIn("detail", body)
+            self.assertIn("too many", body["detail"].lower(), "429 response must include a human-readable message")
+
+
+class CrossResourceAuthorizationTests(unittest.TestCase):
+    """Progress token for diagnostic A must be rejected (403) when presented
+    against diagnostic B's /progress endpoint.
+
+    This closes the gap flagged in the prior audit: the cross-resource
+    isolation is enforced in code but was never asserted in a test.
+    """
+
+    def setUp(self):
+        self.env_patch = patch.dict(os.environ, {"ADMIN_API_TOKEN": "admin-token"})
+        self.env_patch.start()
+
+    def tearDown(self):
+        self.env_patch.stop()
+
+    def test_token_a_rejected_for_diagnostic_b(self):
+        """Token issued to diagnostic A must yield 403 against diagnostic B."""
+        token_a = generate_progress_token()
+        token_b = generate_progress_token()
+
+        fake_supabase_b = FakeSupabase()
+        fake_supabase_b.diagnostic = {
+            "id": "diagnostic-b",
+            "progress_token_hash": hash_progress_token(token_b),
+        }
+
+        update = diagnostic_router.ProgressUpdate(completed_steps=[1])
+
+        with patch.object(diagnostic_router, "get_supabase", return_value=fake_supabase_b):
+            # Token A must be rejected (403) when targeting diagnostic B
+            with self.assertRaises(HTTPException) as ctx:
+                diagnostic_router.update_progress(
+                    "diagnostic-b",
+                    update,
+                    authorization=f"Bearer {token_a}",
+                )
+            self.assertEqual(ctx.exception.status_code, 403, "Wrong token must yield 403, not 200")
+
+            # Token B must succeed for diagnostic B (baseline sanity check)
+            result = diagnostic_router.update_progress(
+                "diagnostic-b",
+                update,
+                authorization=f"Bearer {token_b}",
+            )
+            self.assertEqual(result["status"], "ok")
 
 
 if __name__ == "__main__":

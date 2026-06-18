@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Header, status
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Header, Request, status
 from models.schemas import StudentProfileInput, DiagnosticResponse
 from agents.germany_diagnostic import DiagnosticAIError, run_diagnostic
 from database import get_supabase
@@ -18,6 +18,7 @@ from services.progress_auth import (
     hash_progress_token,
     verify_progress_token,
 )
+from services.rate_limiter import limiter
 from services.redaction import mask_email_for_log, mask_name_for_log
 import httpx
 import os
@@ -43,7 +44,8 @@ def record_ai_usage(
 
 
 @router.post("/", response_model=DiagnosticResponse)
-async def create_diagnostic(student: StudentProfileInput, background_tasks: BackgroundTasks):
+@limiter.limit("5/hour")
+async def create_diagnostic(request: Request, student: StudentProfileInput, background_tasks: BackgroundTasks):
     if not student.consent_given:
         raise HTTPException(
             status_code=422,
