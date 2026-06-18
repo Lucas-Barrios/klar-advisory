@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Header, Request, status
-from models.schemas import StudentProfileInput, DiagnosticResponse
+from models.schemas import DocumentFactoryRequest, StudentProfileInput, DiagnosticResponse
 from agents.germany_diagnostic import DiagnosticAIError, run_diagnostic
 from database import get_supabase
 from pydantic import BaseModel, Field, field_validator
@@ -328,7 +328,7 @@ def update_progress(
 
 
 @router.post("/{diagnostic_id}/generate-documents")
-def generate_documents_endpoint(diagnostic_id: str):
+def generate_documents_endpoint(diagnostic_id: str, body: DocumentFactoryRequest = DocumentFactoryRequest()):
     supabase = get_supabase()
     try:
         diagnostic = supabase.table("diagnostics").select(
@@ -349,6 +349,7 @@ def generate_documents_endpoint(diagnostic_id: str):
             student_data,
             diagnostic_id=diagnostic_id,
             student_id=doc_student_id,
+            target_language=body.target_language,
         )
         doc_usage = documents.pop("_ai_usage", None)
         if doc_usage:

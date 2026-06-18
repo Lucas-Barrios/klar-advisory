@@ -9,7 +9,7 @@ propagate as an unhandled 500.
 from __future__ import annotations
 
 from typing import Any, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -96,7 +96,31 @@ class CVOutput(BaseModel):
 
 
 class DocumentAIOutput(BaseModel):
+    # cv / anschreiben are the backward-compat aliases (always point to the DE versions).
+    # New four-field bilingual format: cv_de / anschreiben_de / cv_target / anschreiben_target.
+    # The model_validator below normalises both old and new formats transparently.
     cv: CVOutput
     anschreiben: str
+    cv_de: Optional[CVOutput] = None
+    anschreiben_de: Optional[str] = None
+    cv_target: Optional[CVOutput] = None
+    anschreiben_target: Optional[str] = None
 
     model_config = {"extra": "ignore"}
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalise_bilingual(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        # New format → populate legacy aliases
+        if "cv_de" in data and "cv" not in data:
+            data["cv"] = data["cv_de"]
+        if "anschreiben_de" in data and "anschreiben" not in data:
+            data["anschreiben"] = data["anschreiben_de"]
+        # Old format → populate new keys so callers can always read cv_de / anschreiben_de
+        if "cv" in data and "cv_de" not in data:
+            data["cv_de"] = data["cv"]
+        if "anschreiben" in data and "anschreiben_de" not in data:
+            data["anschreiben_de"] = data["anschreiben"]
+        return data

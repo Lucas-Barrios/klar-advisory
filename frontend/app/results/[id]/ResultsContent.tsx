@@ -99,12 +99,14 @@ export default function ResultsContent({
   notFound,
   paymentSuccess,
   paymentProduct,
+  sessionId,
 }: {
   diagnostic: Diagnostic | null
   id: string
   notFound: boolean
   paymentSuccess?: boolean
   paymentProduct?: string
+  sessionId?: string
 }) {
   const { t } = useLanguage()
   const r = t.results
@@ -406,6 +408,7 @@ export default function ResultsContent({
             diagnosticId={id}
             documentsUnlocked={diagnostic.documents_unlocked ?? false}
             paymentJustSucceeded={paymentSuccess === true && paymentProduct === 'documents'}
+            sessionId={sessionId}
           />
         </div>
         </div>

@@ -19,10 +19,13 @@ class DocumentAIError(RuntimeError):
         super().__init__(message)
         self.error_type = error_type
 
+_TARGET_LANGUAGE_LABELS = {"en": "English", "es": "Spanish"}
+
 DOCUMENT_PROMPT = """You are Klar's German Document Factory.
-You write professional, German-convention CV (Lebenslauf) STRUCTURE
-and cover letter (Anschreiben) DRAFTS for Latin American candidates
+You write professional document DRAFTS for Latin American candidates
 applying to German Ausbildung, university, or work visa pathways.
+You produce BOTH the German original AND a translation into the requested
+target language in a single response.
 
 CRITICAL RULE — NEVER INVENT FACTS:
 You will be given a coarse profile: education level, field of study,
@@ -31,45 +34,48 @@ names, exact job titles, exact dates, street addresses, phone numbers,
 or specific institution names.
 
 For ANY information you do not have, use a clearly bracketed
-placeholder in German (e.g., "[Name der Bildungseinrichtung]",
+placeholder IN GERMAN (e.g., "[Name der Bildungseinrichtung]",
 "[Arbeitgeber], [Ort]", "[Zeitraum, z.B. 2021–2023]", "[Ihre Adresse]",
-"[Ihre Telefonnummer]"). NEVER fill these with an invented specific
-name, address, date, or employer — even a plausible-sounding one.
+"[Ihre Telefonnummer]"). Keep these German-language placeholders in
+BOTH the German and the translated version — they are format markers
+the student fills in later, not content to translate.
 
-What you CAN write freely (since this is genuine summary/competency
-text, not a specific factual claim):
-- The "Profil" professional summary paragraph
-- General competency descriptions for the "Berufserfahrung" entries
-  (e.g., "Sammelte praktische Erfahrung im Bereich [field],
-  einschließlich [generic relevant tasks for that field]") — but
-  the EMPLOYER NAME and EXACT DATES must still be bracketed placeholders
-- The skills list (kompetenzen) — generic, field-relevant skills
+NEVER fill placeholders with an invented specific name, address, date,
+or employer — even a plausible-sounding one.
 
-German CV conventions:
-- Reverse chronological order
-- Profil at the top
-- Sprachkenntnisse with CEFR levels (use REAL levels from the profile —
-  this is known data, never placeholder)
-- Formal, factual tone
+What you CAN write freely:
+- The "profil" professional summary paragraph (translate for target version)
+- General competency "beschreibung" text for entries (translate for target)
+- The skills list "kompetenzen" (translate each skill for target version)
+- Cover letter body text (translate for target version)
 
-German cover letter (Anschreiben) conventions:
-- "Sehr geehrte Damen und Herren," if no contact name
-- Reference the pathway and field genuinely
-- Use "[Name des Unternehmens]" placeholder for the employer name
-  since no specific employer is known at draft time
-- Maximum 350 words
-- "Mit freundlichen Grüßen," closing
+German CV conventions: reverse chronological, Profil at top, CEFR levels
+real (from profile — never placeholder), formal tone.
 
-RESPOND ONLY WITH VALID JSON:
+German cover letter: "Sehr geehrte Damen und Herren,", "[Name des
+Unternehmens]" for employer, max 350 words, "Mit freundlichen Grüßen,".
+
+Target-language cover letter: equivalent greeting/closing conventions
+for that language; keep all [bracketed] placeholders in German.
+
+RESPOND ONLY WITH VALID JSON (no markdown fences):
 {
-  "cv": {
-    "profil": "<3-4 sentence summary, no fabricated specifics>",
-    "ausbildung": [{"zeitraum": "[Zeitraum]", "beschreibung": "<real education level/field + bracketed institution placeholder>"}],
-    "berufserfahrung": [{"zeitraum": "[Zeitraum]", "beschreibung": "<generic relevant description, employer as [Arbeitgeber], [Ort]>"}],
-    "sprachkenntnisse": [{"sprache": "<language>", "niveau": "<REAL CEFR level from profile>"}],
-    "kompetenzen": ["<generic skill 1>", "<generic skill 2>", "<generic skill 3>"]
+  "cv_de": {
+    "profil": "<German 3-4 sentence summary>",
+    "ausbildung": [{"zeitraum": "[Zeitraum]", "beschreibung": "<German>"}],
+    "berufserfahrung": [{"zeitraum": "[Zeitraum]", "beschreibung": "<German, employer as [Arbeitgeber], [Ort]>"}],
+    "sprachkenntnisse": [{"sprache": "<language>", "niveau": "<REAL CEFR>"}],
+    "kompetenzen": ["<German skill>"]
   },
-  "anschreiben": "<cover letter with [Name des Unternehmens] placeholder for employer>"
+  "anschreiben_de": "<German cover letter>",
+  "cv_target": {
+    "profil": "<target-language 3-4 sentence summary, same [bracketed] placeholders>",
+    "ausbildung": [{"zeitraum": "[Zeitraum]", "beschreibung": "<target language, same placeholders>"}],
+    "berufserfahrung": [{"zeitraum": "[Zeitraum]", "beschreibung": "<target language, same placeholders>"}],
+    "sprachkenntnisse": [{"sprache": "<language name in target language>", "niveau": "<REAL CEFR>"}],
+    "kompetenzen": ["<target-language skill>"]
+  },
+  "anschreiben_target": "<target-language cover letter, [bracketed] placeholders kept in German>"
 }"""
 
 
@@ -78,8 +84,10 @@ def generate_documents(
     *,
     diagnostic_id: str | None = None,
     student_id: str | None = None,
+    target_language: str = "en",
 ) -> dict:
-    user_message = f"""Generate German CV and cover letter for:
+    lang_label = _TARGET_LANGUAGE_LABELS.get(target_language, "English")
+    user_message = f"""Generate bilingual German + {lang_label} CV and cover letter for:
 
 Name: {student_data['name']}
 Pathway: {student_data['pathway']}
@@ -88,14 +96,14 @@ Work experience: {student_data['work_experience_years']} years
 German level: {student_data['german_level']}
 English level: {student_data.get('english_level', 'Not specified')}
 Country: {student_data['country']}
+Target translation language: {lang_label}
 
-Return the JSON structure specified."""
+Return the four-field JSON structure specified (cv_de, anschreiben_de, cv_target, anschreiben_target)."""
 
-    # Document generation: Sonnet for long-form structured JSON requiring German writing quality
     doc_start = time.perf_counter()
     response = client.messages.create(
         model=AI_MODEL,
-        max_tokens=2500,
+        max_tokens=5000,
         system=DOCUMENT_PROMPT,
         messages=[{"role": "user", "content": user_message}],
     )

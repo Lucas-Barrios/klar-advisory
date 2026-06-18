@@ -11,6 +11,7 @@ export default async function ResultsPage(props: {
   const searchParams = await props.searchParams
   const paymentSuccess = searchParams.payment === 'success'
   const paymentProduct = searchParams.product
+  const sessionId = searchParams.session_id
 
   let diagnostic: Diagnostic | null = null
   let notFound = false
@@ -54,6 +55,7 @@ export default async function ResultsPage(props: {
       notFound={notFound || !diagnostic}
       paymentSuccess={paymentSuccess}
       paymentProduct={paymentProduct}
+      sessionId={sessionId}
     />
   )
 }

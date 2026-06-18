@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field, field_validator
 from typing import Any, Literal, Optional
 
 Pathway = Literal["university", "ausbildung", "work_visa"]
+TargetLanguage = Literal["en", "es"]
 GermanLevel = Literal["none", "A1", "A2", "B1", "B2", "C1", "C2"]
 Timeline = Literal["6_months", "1_year", "2_years_plus"]
 DiagnosticStatus = Literal["pending", "approved", "rejected"]
@@ -54,6 +55,10 @@ class StudentProfileInput(BaseModel):
         if "@" not in value or value.startswith("@") or value.endswith("@"):
             raise ValueError("email must be a valid email address")
         return value
+
+class DocumentFactoryRequest(BaseModel):
+    target_language: TargetLanguage = "en"
+
 
 class DiagnosticResponse(BaseModel):
     diagnostic_id: str
