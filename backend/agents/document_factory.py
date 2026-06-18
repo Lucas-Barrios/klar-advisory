@@ -1,7 +1,16 @@
 import json
-from anthropic import Anthropic
+import time
 
-client = Anthropic()
+from anthropic import Anthropic
+from services.ai_observability import (
+    AI_MODEL,
+    AI_PROVIDER,
+    REQUEST_TYPE_DOCUMENT_FACTORY,
+    build_usage_event,
+    extract_usage_tokens,
+)
+
+client = Anthropic(max_retries=2)
 
 DOCUMENT_PROMPT = """You are Klar's German Document Factory.
 You write professional, German-convention CV (Lebenslauf) STRUCTURE
@@ -57,7 +66,12 @@ RESPOND ONLY WITH VALID JSON:
 }"""
 
 
-def generate_documents(student_data: dict) -> dict:
+def generate_documents(
+    student_data: dict,
+    *,
+    diagnostic_id: str | None = None,
+    student_id: str | None = None,
+) -> dict:
     user_message = f"""Generate German CV and cover letter for:
 
 Name: {student_data['name']}
@@ -70,11 +84,26 @@ Country: {student_data['country']}
 
 Return the JSON structure specified."""
 
+    # Document generation: Sonnet for long-form structured JSON requiring German writing quality
+    doc_start = time.perf_counter()
     response = client.messages.create(
-        model="claude-sonnet-4-6",
+        model=AI_MODEL,
         max_tokens=2500,
         system=DOCUMENT_PROMPT,
         messages=[{"role": "user", "content": user_message}],
+    )
+    doc_latency_ms = int((time.perf_counter() - doc_start) * 1000)
+    doc_in, doc_out = extract_usage_tokens(response)
+    doc_usage = build_usage_event(
+        provider=AI_PROVIDER,
+        model=AI_MODEL,
+        request_type=REQUEST_TYPE_DOCUMENT_FACTORY,
+        diagnostic_id=diagnostic_id,
+        student_id=student_id,
+        input_tokens=doc_in,
+        output_tokens=doc_out,
+        latency_ms=doc_latency_ms,
+        success=True,
     )
 
     raw = response.content[0].text.strip()
@@ -83,4 +112,6 @@ Return the JSON structure specified."""
         if raw.startswith("json"):
             raw = raw[4:]
 
-    return json.loads(raw.strip())
+    result = json.loads(raw.strip())
+    result["_ai_usage"] = doc_usage
+    return result

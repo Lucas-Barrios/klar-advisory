@@ -12,7 +12,12 @@ from typing import Any
 
 AI_PROVIDER = "anthropic"
 AI_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+# Haiku is sufficient for cheap classification/routing calls (5-way sector mapping)
+AI_MODEL_HAIKU = os.getenv("ANTHROPIC_HAIKU_MODEL", "claude-haiku-4-5")
 REQUEST_TYPE_GERMANY_DIAGNOSTIC = "germany_diagnostic"
+REQUEST_TYPE_AUSBILDUNG_SECTOR = "ausbildung_sector"
+REQUEST_TYPE_AUSBILDUNG_MATCH = "ausbildung_match"
+REQUEST_TYPE_DOCUMENT_FACTORY = "document_factory"
 logger = logging.getLogger(__name__)
 
 
@@ -28,6 +33,9 @@ MODEL_PRICING: dict[str, ModelPricing] = {
     "claude-sonnet-4-6": ModelPricing(AI_PROVIDER, 3.0, 15.0),
     "claude-sonnet-4.6": ModelPricing(AI_PROVIDER, 3.0, 15.0),
     "claude-sonnet-4-5": ModelPricing(AI_PROVIDER, 3.0, 15.0),
+    # Claude Haiku 4.5 at $1/MTok input and $5/MTok output.
+    "claude-haiku-4-5": ModelPricing(AI_PROVIDER, 1.0, 5.0),
+    "claude-haiku-4-5-20251001": ModelPricing(AI_PROVIDER, 1.0, 5.0),
 }
 
 PII_TELEMETRY_KEYS = {
@@ -76,6 +84,14 @@ def calculate_estimated_cost(
     input_cost = (max(input_tokens, 0) / 1_000_000) * pricing.input_usd_per_mtok
     output_cost = (max(output_tokens, 0) / 1_000_000) * pricing.output_usd_per_mtok
     return round(input_cost + output_cost, 8)
+
+
+def extract_usage_tokens(response: Any) -> tuple[int, int]:
+    """Return (input_tokens, output_tokens) from an Anthropic response object."""
+    usage = getattr(response, "usage", None)
+    if not usage:
+        return 0, 0
+    return int(getattr(usage, "input_tokens", 0) or 0), int(getattr(usage, "output_tokens", 0) or 0)
 
 
 def safe_error_type(error: BaseException | str | None) -> str | None:

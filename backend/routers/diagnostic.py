@@ -11,6 +11,7 @@ from services.admin_auth import extract_bearer_token
 from services.diagnostic_versions import (
     DIAGNOSTIC_PROMPT_VERSION,
     DIAGNOSTIC_RUBRIC_VERSION,
+    MATCH_PROMPT_VERSION,
 )
 from services.progress_auth import (
     generate_progress_token,
@@ -87,6 +88,7 @@ async def create_diagnostic(student: StudentProfileInput, background_tasks: Back
             "status": "pending",
             "diagnostic_prompt_version": DIAGNOSTIC_PROMPT_VERSION,
             "diagnostic_rubric_version": DIAGNOSTIC_RUBRIC_VERSION,
+            "ai_model": (ai_usage_event or {}).get("model"),
             "progress_token_hash": hash_progress_token(progress_token),
         }).execute()
         diagnostic_id = d.data[0]["id"]
@@ -116,7 +118,7 @@ async def create_diagnostic(student: StudentProfileInput, background_tasks: Back
         # Trigger position matching in background for ausbildung pathway
         if student.pathway == "ausbildung":
             background_tasks.add_task(
-                run_ausbildung_matching, diagnostic_id, student_data
+                run_ausbildung_matching, diagnostic_id, student_id, student_data
             )
 
         return DiagnosticResponse(
@@ -128,6 +130,12 @@ async def create_diagnostic(student: StudentProfileInput, background_tasks: Back
 
     except DiagnosticAIError as e:
         if student_id:
+            try:
+                supabase.table("students").update(
+                    {"ai_status": "diagnostic_failed"}
+                ).eq("id", student_id).execute()
+            except Exception:
+                pass
             record_ai_usage(
                 supabase,
                 e.usage_event,
@@ -331,31 +339,66 @@ def generate_documents_endpoint(diagnostic_id: str):
         raise HTTPException(status_code=402, detail="Payment required to generate documents")
 
     student_data = (diagnostic.data or {}).get("students") or {}
+    doc_student_id = (diagnostic.data or {}).get("student_id")
 
     try:
         from agents.document_factory import generate_documents
-        documents = generate_documents(student_data)
+        documents = generate_documents(
+            student_data,
+            diagnostic_id=diagnostic_id,
+            student_id=doc_student_id,
+        )
+        doc_usage = documents.pop("_ai_usage", None)
+        if doc_usage:
+            try:
+                record_ai_usage(
+                    supabase,
+                    doc_usage,
+                    diagnostic_id=diagnostic_id,
+                    student_id=doc_student_id,
+                )
+            except Exception:
+                pass
         return documents
     except Exception as e:
         import traceback
         print("=== DOCUMENT GENERATION FAILED ===")
         print(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"Could not generate documents: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Document generation is temporarily unavailable. Please try again later.",
+        )
 
 
-def run_ausbildung_matching(diagnostic_id: str, student_data: dict) -> None:
+def run_ausbildung_matching(diagnostic_id: str, student_id: str, student_data: dict) -> None:
+    import logging as _logging
+    _logger = _logging.getLogger(__name__)
+    supabase = get_supabase()
     try:
         from agents.ausbildung_matcher import match_positions
-        supabase = get_supabase()
-        match_result = match_positions(student_data)
+        match_result = match_positions(
+            student_data,
+            diagnostic_id=diagnostic_id,
+            student_id=student_id,
+        )
         supabase.table("ausbildung_matches").insert({
             "diagnostic_id": diagnostic_id,
             "matched_positions": match_result.get("matches", []),
             "reasoning_summary": match_result.get("overall_summary", ""),
             "status": "pending",
+            "match_prompt_version": MATCH_PROMPT_VERSION,
         }).execute()
     except Exception as e:
-        print(f"Position matching failed (non-blocking): {e}")
+        _logger.warning("Position matching failed (non-blocking): %s", type(e).__name__)
+        try:
+            supabase.table("audit_log").insert({
+                "diagnostic_id": diagnostic_id,
+                "action": "ausbildung_matching_failed",
+                "actor": "system",
+                "details": {"error_type": type(e).__name__},
+            }).execute()
+        except Exception:
+            pass
 
 
 async def notify_student_approved(diagnostic_id: str, name: str, email: str):

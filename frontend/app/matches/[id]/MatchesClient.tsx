@@ -230,7 +230,7 @@ export default function MatchesClient({
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        ⚠ Level may be insufficient
+                        ⚠ German level may be insufficient
                       </span>
                     )}
                   </div>

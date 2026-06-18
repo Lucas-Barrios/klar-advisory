@@ -11,6 +11,7 @@ from services.ai_observability import (
     REQUEST_TYPE_GERMANY_DIAGNOSTIC,
     build_usage_event,
     estimate_tokens_from_text,
+    extract_usage_tokens,
     safe_error_type,
 )
 
@@ -86,7 +87,7 @@ def get_env_float(name: str, default: float, *, minimum: float, maximum: float) 
 def get_anthropic_client() -> Anthropic:
     global client
     if client is None:
-        client = Anthropic()
+        client = Anthropic(max_retries=2)
     return client
 
 
@@ -134,15 +135,6 @@ Return exactly this JSON structure:
     }}
   ]
 }}"""
-
-
-def extract_usage_tokens(response: Any) -> tuple[int, int]:
-    usage = getattr(response, "usage", None)
-    if not usage:
-        return 0, 0
-    input_tokens = int(getattr(usage, "input_tokens", 0) or 0)
-    output_tokens = int(getattr(usage, "output_tokens", 0) or 0)
-    return input_tokens, output_tokens
 
 
 def parse_diagnostic_response(response: Any) -> dict:

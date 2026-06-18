@@ -1,0 +1,14 @@
+{
+  "diagnostic": {
+    "prompt_hash": "8affde14ee9223be",
+    "version": "germany_diagnostic_prompt_v2"
+  },
+  "match": {
+    "prompt_hash": "f55a9321ac5a5f0f",
+    "version": "ausbildung_match_prompt_v1"
+  },
+  "document": {
+    "prompt_hash": "6b0f11f485a71495",
+    "version": "document_factory_prompt_v1"
+  }
+}
