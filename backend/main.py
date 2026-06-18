@@ -1,9 +1,16 @@
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from routers import diagnostic, admin, payments
 from services.rate_limiter import limiter
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s — %(message)s",
+)
 
 app = FastAPI(title="Klar API", version="1.0.0")
 app.state.limiter = limiter

@@ -183,6 +183,10 @@ async def _send_kit_ready_email(
     diagnostic_id: str,
     target_language: str,
 ) -> None:
+    if not to_email or "@" not in to_email:
+        logger.warning("Skipping kit email for diagnostic %s — no valid email", diagnostic_id)
+        return
+
     resend_key = os.getenv("RESEND_API_KEY")
     if not resend_key:
         logger.warning("RESEND_API_KEY not set — skipping payment confirmation email")

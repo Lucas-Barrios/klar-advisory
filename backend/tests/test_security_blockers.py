@@ -156,6 +156,7 @@ class SecurityBlockerTests(unittest.TestCase):
         self.assertIn("conversion_rate", body)
 
     def test_review_audit_details_redact_reviewer_notes(self):
+        import asyncio
         fake_supabase = FakeSupabase()
         fake_supabase.diagnostic = {
             "id": "diagnostic-1",
@@ -174,9 +175,9 @@ class SecurityBlockerTests(unittest.TestCase):
         )
 
         with patch.object(admin_router, "get_supabase", return_value=fake_supabase):
-            result = admin_router.review_diagnostic(
+            result = asyncio.run(admin_router.review_diagnostic(
                 "diagnostic-1", action, BackgroundTasks()
-            )
+            ))
 
         self.assertEqual(result["status"], "ok")
         audit_details = fake_supabase.inserts["audit_log"][0]["details"]

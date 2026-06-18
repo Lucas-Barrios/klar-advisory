@@ -66,7 +66,7 @@ def get_diagnostic(diagnostic_id: str):
     return result.data
 
 @router.post("/diagnostics/{diagnostic_id}/review")
-def review_diagnostic(diagnostic_id: str, action: ReviewAction, background_tasks: BackgroundTasks):
+async def review_diagnostic(diagnostic_id: str, action: ReviewAction, background_tasks: BackgroundTasks):
     supabase = get_supabase()
     diagnostic = supabase.table("diagnostics").select(
         "id, students(name, full_name, email)"
@@ -130,6 +130,12 @@ def review_diagnostic(diagnostic_id: str, action: ReviewAction, background_tasks
     if action.status == "approved":
         student_name = student.get("name") or student.get("full_name") or ""
         student_email = student.get("email") or ""
+        if not student_email:
+            logger.warning(
+                "Approval for diagnostic %s — student email is empty, "
+                "notification will be skipped",
+                diagnostic_id,
+            )
         background_tasks.add_task(
             notify_student_approved, diagnostic_id, student_name, student_email
         )

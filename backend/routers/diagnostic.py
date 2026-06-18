@@ -409,6 +409,13 @@ _notify_logger = logging.getLogger(__name__)
 
 
 async def notify_student_approved(diagnostic_id: str, name: str, email: str) -> None:
+    if not email or "@" not in email:
+        _notify_logger.warning(
+            "Skipping approval email for diagnostic %s — no valid email",
+            diagnostic_id,
+        )
+        return
+
     resend_key = os.getenv("RESEND_API_KEY")
     if not resend_key:
         _notify_logger.warning("RESEND_API_KEY not set — skipping approval email")
