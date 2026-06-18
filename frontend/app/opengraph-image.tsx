@@ -19,33 +19,39 @@ export default function OgImage() {
           fontFamily: 'system-ui, sans-serif',
         }}
       >
-        {/* Logo mark */}
+        {/* Wordmark */}
         <div
           style={{
-            background: '#2563EB',
-            width: 96,
-            height: 96,
-            borderRadius: 20,
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            alignItems: 'flex-end',
             marginBottom: 28,
           }}
         >
-          <div style={{ color: 'white', fontSize: 60, fontWeight: 700, lineHeight: 1 }}>K</div>
-        </div>
-
-        {/* Title */}
-        <div
-          style={{
-            color: '#F9FAFB',
-            fontSize: 72,
-            fontWeight: 700,
-            letterSpacing: '-3px',
-            marginBottom: 16,
-          }}
-        >
-          Klar
+          <div
+            style={{
+              color: '#F9FAFB',
+              fontSize: 96,
+              fontWeight: 700,
+              letterSpacing: '-4px',
+              fontFamily: 'Space Grotesk, system-ui, sans-serif',
+              lineHeight: 1,
+            }}
+          >
+            Klar
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 7,
+              marginLeft: 10,
+              marginBottom: 18,
+            }}
+          >
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#2563EB' }} />
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#2563EB' }} />
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#2563EB' }} />
+          </div>
         </div>
 
         {/* Tagline */}

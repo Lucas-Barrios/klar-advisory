@@ -1,9 +1,9 @@
 'use client'
 import Link from 'next/link'
-import Image from 'next/image'
 import { useState } from 'react'
 import { BarChart2, Briefcase, FileText, ShieldCheck, Lock, CheckCircle, ChevronDown } from 'lucide-react'
 import { useLanguage } from '@/lib/LanguageContext'
+import KlarLogo from '@/components/KlarLogo'
 
 const KLAR_BLUE = '#2563EB'
 const BLUE_DIM = 'rgba(37,99,235,0.12)'
@@ -75,19 +75,14 @@ export default function HomePage() {
         style={{ minHeight: '100vh' }}
       >
         <div style={{ position: 'relative', zIndex: 1 }} className="flex flex-col items-center">
-          {/* Logo mark */}
-          <Image
-            src="/logo.svg"
-            alt="Klar"
-            width={64}
-            height={64}
-            priority
-            style={{ marginBottom: '24px' }}
-          />
+          {/* Wordmark */}
+          <div style={{ marginBottom: '24px' }}>
+            <KlarLogo size="lg" />
+          </div>
 
           {/* Pill badge */}
           <div
-            className="inline-flex items-center rounded-full text-sm px-4 mb-8"
+            className="inline-flex items-center rounded-full text-sm px-4 mb-3"
             style={{
               background: 'var(--accent-dim)',
               border: '1px solid rgba(13,148,136,0.3)',
@@ -98,6 +93,20 @@ export default function HomePage() {
           >
             ✦ {l.badge}
           </div>
+
+          {/* Slogan */}
+          <p
+            style={{
+              fontSize: '11px',
+              letterSpacing: '0.15em',
+              textTransform: 'uppercase',
+              color: '#6B7280',
+              marginTop: 0,
+              marginBottom: '12px',
+            }}
+          >
+            {l.slogan}
+          </p>
 
           {/* Headline */}
           <h1
@@ -576,7 +585,7 @@ export default function HomePage() {
           color: '#6B7280',
         }}
       >
-        Klar © 2026 · Powered by Claude AI · Reviewed by humans
+        Klar © 2026 · Powered by AI · Reviewed by humans
       </footer>
     </div>
   )

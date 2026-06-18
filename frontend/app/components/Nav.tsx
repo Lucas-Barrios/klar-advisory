@@ -1,9 +1,9 @@
 'use client'
 import Link from 'next/link'
-import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useLanguage } from '@/lib/LanguageContext'
 import GermanFlag from '@/components/GermanFlag'
+import KlarLogo from '@/components/KlarLogo'
 import LanguageToggle from './LanguageToggle'
 
 export default function Nav() {
@@ -25,7 +25,7 @@ export default function Nav() {
     >
       <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
-          <Image src="/logo.svg" alt="Klar" width={28} height={28} priority />
+          <KlarLogo size="md" />
           <GermanFlag size={20} />
         </Link>
 

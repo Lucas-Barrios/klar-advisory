@@ -22,7 +22,7 @@ export default function Icon() {
             color: 'white',
             fontSize: 22,
             fontWeight: 700,
-            fontFamily: 'system-ui, sans-serif',
+            fontFamily: 'Space Grotesk, system-ui, sans-serif',
             lineHeight: 1,
           }}
         >
