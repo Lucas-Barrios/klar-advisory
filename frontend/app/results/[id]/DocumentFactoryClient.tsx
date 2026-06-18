@@ -533,7 +533,7 @@ export default function DocumentFactoryClient({
         .then(r => r.json())
         .then(data => {
           if (cancelled) return
-          if (data.documents_unlocked && data.diagnostic_id === diagnosticId) {
+          if (data.documents_unlocked && data.matches_unlocked && data.diagnostic_id === diagnosticId) {
             setIsUnlocked(true)
             setCheckingPayment(false)
           } else {
@@ -556,7 +556,7 @@ export default function DocumentFactoryClient({
       const res = await fetch(`${API_URL}/api/payments/create-checkout-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ diagnostic_id: diagnosticId, product: 'documents', target_language: lang }),
+        body: JSON.stringify({ diagnostic_id: diagnosticId, product: 'kit', target_language: lang }),
       })
       const data = await res.json()
       if (data.url) window.location.href = data.url
@@ -614,8 +614,11 @@ export default function DocumentFactoryClient({
             disabled={checkoutLoading}
             style={{ background: 'var(--accent)', color: 'white', padding: '12px 28px', borderRadius: 9999, fontWeight: 700, fontSize: '0.9375rem', border: 'none', cursor: checkoutLoading ? 'wait' : 'pointer', opacity: checkoutLoading ? 0.7 : 1 }}
           >
-            {checkoutLoading ? 'Redirecting…' : 'Unlock CV & Cover Letter — €15'}
+            {checkoutLoading ? 'Redirecting…' : 'Unlock Germany Application Kit — €39'}
           </button>
+          <p style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '10px' }}>
+            Includes matched positions + bilingual CV &amp; Cover Letter
+          </p>
         </div>
       </div>
     )

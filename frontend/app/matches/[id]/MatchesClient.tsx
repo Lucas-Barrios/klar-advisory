@@ -54,7 +54,7 @@ export default function MatchesClient({
       const res = await fetch(`${API_URL}/api/payments/create-checkout-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ diagnostic_id: id, product: 'matches' }),
+        body: JSON.stringify({ diagnostic_id: id, product: 'kit' }),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
@@ -370,8 +370,11 @@ export default function MatchesClient({
                 opacity: checkoutLoading ? 0.7 : 1,
               }}
             >
-              {checkoutLoading ? 'Redirecting…' : `Unlock all ${positions.length + lockedCount} matches — €19`}
+              {checkoutLoading ? 'Redirecting…' : `Unlock Germany Application Kit — €39`}
             </button>
+            <p style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '10px' }}>
+              Includes matched positions + bilingual CV &amp; Cover Letter
+            </p>
             {checkoutError && (
               <div style={{ marginTop: 16 }}>
                 <ErrorMessage message={checkoutError} onDismiss={() => setCheckoutError(null)} onRetry={handleUnlock} />

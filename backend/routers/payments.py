@@ -14,18 +14,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 PRODUCTS = {
-    "matches": {
-        "name": "Matched Positions Unlock",
-        "price_eur": 1900,
-        "unlock_field": "matches_unlocked",
-        "success_path": "matches",
-    },
-    "documents": {
-        "name": "CV & Cover Letter Generation",
-        "price_eur": 1500,
-        "unlock_field": "documents_unlocked",
+    "kit": {
+        "name": "Germany Application Kit",
+        "price_eur": 3900,
+        "unlock_fields": ["matches_unlocked", "documents_unlocked"],
         "success_path": "results",
-    },
+    }
 }
 
 _LANG_LABELS = {"en": "English", "es": "Spanish"}
@@ -113,7 +107,6 @@ async def stripe_webhook(request: Request):
         target_language = metadata.get("target_language", "en")
 
         if diagnostic_id and product in PRODUCTS:
-            unlock_field = PRODUCTS[product]["unlock_field"]
             supabase = get_supabase()
 
             # Fetch student name + email via diagnostics→students join.
@@ -133,12 +126,12 @@ async def stripe_webhook(request: Request):
             except Exception:
                 logger.warning("Could not fetch student data for diagnostic %s", diagnostic_id)
 
-            supabase.table("diagnostics").update({
-                unlock_field: True
-            }).eq("id", diagnostic_id).execute()
+            # Unlock all fields for this product in a single DB update.
+            unlock_payload = {field: True for field in PRODUCTS[product]["unlock_fields"]}
+            supabase.table("diagnostics").update(unlock_payload).eq("id", diagnostic_id).execute()
 
-            if product == "documents" and student_email:
-                await _send_documents_ready_email(
+            if product == "kit" and student_email:
+                await _send_kit_ready_email(
                     to_email=student_email,
                     name=student_name or "there",
                     diagnostic_id=diagnostic_id,
@@ -153,7 +146,7 @@ def verify_session(session_id: str):
     """Instant payment-confirmation check called by the frontend on return from Stripe.
 
     Retrieves the Stripe session, verifies payment_status == "paid", then also
-    sets documents_unlocked in the database so the page unlocks immediately even
+    sets both unlock fields in the database so the page unlocks immediately even
     if the webhook hasn't arrived yet.
     """
     stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
@@ -164,28 +157,26 @@ def verify_session(session_id: str):
         raise HTTPException(status_code=400, detail=f"Could not retrieve session: {e}")
 
     if session.payment_status != "paid":
-        return {"documents_unlocked": False, "diagnostic_id": None}
+        return {"documents_unlocked": False, "matches_unlocked": False, "diagnostic_id": None}
 
     metadata = session.metadata or {}
     diagnostic_id = metadata.get("diagnostic_id")
     product = metadata.get("product")
 
     if not diagnostic_id or product not in PRODUCTS:
-        return {"documents_unlocked": False, "diagnostic_id": diagnostic_id}
+        return {"documents_unlocked": False, "matches_unlocked": False, "diagnostic_id": diagnostic_id}
 
-    unlock_field = PRODUCTS[product]["unlock_field"]
+    unlock_payload = {field: True for field in PRODUCTS[product]["unlock_fields"]}
     supabase = get_supabase()
     try:
-        supabase.table("diagnostics").update({
-            unlock_field: True
-        }).eq("id", diagnostic_id).execute()
+        supabase.table("diagnostics").update(unlock_payload).eq("id", diagnostic_id).execute()
     except Exception:
         logger.warning("verify-session: DB update failed for diagnostic %s", diagnostic_id)
 
-    return {"documents_unlocked": True, "diagnostic_id": diagnostic_id}
+    return {"documents_unlocked": True, "matches_unlocked": True, "diagnostic_id": diagnostic_id}
 
 
-async def _send_documents_ready_email(
+async def _send_kit_ready_email(
     *,
     to_email: str,
     name: str,
@@ -202,7 +193,7 @@ async def _send_documents_ready_email(
     lang_label = _LANG_LABELS.get(target_language, "English")
     cta_url = (
         f"{frontend_url}/results/{diagnostic_id}"
-        f"?payment=success&product=documents"
+        f"?payment=success&product=kit"
     )
 
     html = f"""<!DOCTYPE html>
@@ -210,7 +201,7 @@ async def _send_documents_ready_email(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Your Klar documents are ready</title>
+  <title>Your Germany Application Kit is ready</title>
 </head>
 <body style="margin:0;padding:0;background:#0F1117;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <div style="max-width:600px;margin:0 auto;padding:40px 24px;">
@@ -224,22 +215,23 @@ async def _send_documents_ready_email(
     </h1>
 
     <p style="color:#9CA3AF;font-size:16px;line-height:1.7;margin:0 0 28px;">
-      Payment confirmed. Your bilingual CV and Cover Letter — in German and
-      <strong style="color:#F9FAFB;">{lang_label}</strong> — are ready.
+      Payment confirmed. Your <strong style="color:#F9FAFB;">Germany Application Kit</strong> is ready —
+      matched positions from Germany's Federal Employment Agency plus a bilingual CV and Cover Letter
+      in German and <strong style="color:#F9FAFB;">{lang_label}</strong>.
     </p>
 
     <a href="{cta_url}"
        style="display:inline-block;background:#2563EB;color:#FFFFFF;padding:14px 32px;
               border-radius:9999px;text-decoration:none;font-weight:700;font-size:15px;
               margin-bottom:36px;">
-      Open My Documents →
+      Open My Kit →
     </a>
 
     <hr style="border:none;border-top:1px solid rgba(255,255,255,0.08);margin:0 0 28px;">
 
     <p style="color:#6B7280;font-size:13px;line-height:1.7;margin:0 0 24px;">
       Fill in the <span style="color:#F59E0B;font-weight:600;">[bracketed]</span>
-      placeholders with your real information before sending to employers.
+      placeholders in your CV and cover letter with your real information before sending to employers.
       Klar generates the structure — you provide the facts.
     </p>
 
@@ -263,7 +255,7 @@ async def _send_documents_ready_email(
                 json={
                     "from": f"Klar <{from_addr}>",
                     "to": [to_email],
-                    "subject": "Your Klar documents are ready \U0001f389",
+                    "subject": "Your Germany Application Kit is ready \U0001f389",
                     "html": html,
                 },
             )
@@ -272,4 +264,4 @@ async def _send_documents_ready_email(
                     "Resend returned %s: %s", resp.status_code, resp.text[:200]
                 )
     except Exception as exc:
-        logger.warning("Failed to send documents-ready email: %s", exc)
+        logger.warning("Failed to send kit-ready email: %s", exc)

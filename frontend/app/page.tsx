@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { useState } from 'react'
-import { BarChart2, Briefcase, FileText, ShieldCheck, Lock, CheckCircle, ChevronDown } from 'lucide-react'
+import { BarChart2, Briefcase, ShieldCheck, Lock, CheckCircle, ChevronDown } from 'lucide-react'
 import { useLanguage } from '@/lib/LanguageContext'
 import KlarLogo from '@/components/KlarLogo'
 
@@ -23,33 +23,6 @@ export default function HomePage() {
     { num: '01', title: l.step1Title, desc: l.step1Desc },
     { num: '02', title: l.step2Title, desc: l.step2Desc },
     { num: '03', title: l.step3Title, desc: l.step3Desc },
-  ]
-
-  const cards = [
-    {
-      icon: <BarChart2 size={24} color={KLAR_BLUE} />,
-      title: l.card1Title,
-      desc: l.card1Desc,
-      badge: l.card1Badge,
-      badgeBg: BLUE_DIM,
-      badgeColor: '#93C5FD',
-    },
-    {
-      icon: <Briefcase size={24} color={KLAR_BLUE} />,
-      title: l.card2Title,
-      desc: l.card2Desc,
-      badge: l.card2Badge,
-      badgeBg: BLUE_DIM,
-      badgeColor: '#93C5FD',
-    },
-    {
-      icon: <FileText size={24} color={KLAR_BLUE} />,
-      title: l.card3Title,
-      desc: l.card3Desc,
-      badge: l.card3Badge,
-      badgeBg: BLUE_DIM,
-      badgeColor: '#93C5FD',
-    },
   ]
 
   const trust = [
@@ -306,72 +279,132 @@ export default function HomePage() {
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
               gap: '20px',
+              alignItems: 'stretch',
             }}
           >
-            {cards.map(({ icon, title, desc, badge, badgeBg, badgeColor }) => (
-              <div
-                key={title}
-                className="glass"
+            {/* Card 1 — Free diagnostic */}
+            <div
+              className="glass"
+              style={{
+                borderRadius: '16px',
+                padding: '28px',
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+              }}
+            >
+              <span
                 style={{
-                  borderRadius: '16px',
-                  padding: '28px',
-                  position: 'relative',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px',
+                  position: 'absolute',
+                  top: '20px',
+                  right: '20px',
+                  background: BLUE_DIM,
+                  color: '#93C5FD',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  padding: '4px 10px',
+                  borderRadius: '9999px',
+                  border: '1px solid rgba(37,99,235,0.25)',
+                  letterSpacing: '0.02em',
                 }}
               >
-                {/* Badge */}
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: '20px',
-                    right: '20px',
-                    background: badgeBg,
-                    color: badgeColor,
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    padding: '4px 10px',
-                    borderRadius: '9999px',
-                    border: `1px solid rgba(37,99,235,0.25)`,
-                    letterSpacing: '0.02em',
-                  }}
-                >
-                  {badge}
-                </span>
-
-                {/* Icon */}
-                <div
-                  style={{
-                    width: '44px',
-                    height: '44px',
-                    borderRadius: '10px',
-                    background: BLUE_DIM,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {icon}
-                </div>
-
-                <h3
-                  style={{
-                    fontSize: '1.0625rem',
-                    fontWeight: 600,
-                    color: '#F9FAFB',
-                    letterSpacing: '-0.02em',
-                    marginTop: '4px',
-                    paddingRight: '40px',
-                  }}
-                >
-                  {title}
-                </h3>
-                <p style={{ fontSize: '0.875rem', color: '#9CA3AF', lineHeight: 1.65 }}>
-                  {desc}
-                </p>
+                {l.card1Badge}
+              </span>
+              <div
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '10px',
+                  background: BLUE_DIM,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <BarChart2 size={24} color={KLAR_BLUE} />
               </div>
-            ))}
+              <h3
+                style={{
+                  fontSize: '1.0625rem',
+                  fontWeight: 600,
+                  color: '#F9FAFB',
+                  letterSpacing: '-0.02em',
+                  marginTop: '4px',
+                  paddingRight: '40px',
+                }}
+              >
+                {l.card1Title}
+              </h3>
+              <p style={{ fontSize: '0.875rem', color: '#9CA3AF', lineHeight: 1.65 }}>
+                {l.card1Desc}
+              </p>
+            </div>
+
+            {/* Card 2 — Germany Application Kit (bundle, highlighted) */}
+            <div
+              style={{
+                borderRadius: '16px',
+                padding: '28px',
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                background: 'rgba(37,99,235,0.06)',
+                border: '1px solid rgba(37,99,235,0.4)',
+                boxShadow: '0 0 24px rgba(37,99,235,0.12)',
+              }}
+            >
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '20px',
+                  right: '20px',
+                  background: KLAR_BLUE,
+                  color: 'white',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  padding: '4px 10px',
+                  borderRadius: '9999px',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                {l.bundleBadge}
+              </span>
+              <div
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '10px',
+                  background: KLAR_BLUE,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Briefcase size={24} color="white" />
+              </div>
+              <h3
+                style={{
+                  fontSize: '1.0625rem',
+                  fontWeight: 700,
+                  color: '#F9FAFB',
+                  letterSpacing: '-0.02em',
+                  marginTop: '4px',
+                  paddingRight: '48px',
+                }}
+              >
+                {l.bundleTitle}
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
+                {[l.bundleItem1, l.bundleItem2].map((item) => (
+                  <div key={item} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                    <span style={{ color: KLAR_BLUE, fontWeight: 700, flexShrink: 0, marginTop: '1px' }}>✓</span>
+                    <span style={{ fontSize: '0.875rem', color: '#D1D5DB', lineHeight: 1.55 }}>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
