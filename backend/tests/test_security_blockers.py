@@ -510,5 +510,148 @@ class CrossResourceAuthorizationTests(unittest.TestCase):
             self.assertEqual(result["status"], "ok")
 
 
+class DiagnosticSerializationTests(unittest.TestCase):
+    """Regression: student_data inserted into Supabase must be JSON-serializable.
+
+    The live 500 was caused by model_dump() returning a datetime object for
+    consent_timestamp, which Supabase's JSON serialization rejected. The fix
+    (model_dump(mode='json')) converts it to an ISO-8601 string. This suite
+    catches that class of bug by round-tripping every insert payload through
+    json.dumps() before reporting success.
+    """
+
+    _BASE_PAYLOAD = {
+        "name": "Ana Souza",
+        "email": "ana@example.com",
+        "country": "Brazil",
+        "pathway": "ausbildung",
+        "german_level": "B1",
+        "education_level": "bachelor",
+        "work_experience_years": 3,
+        "timeline": "1_year",
+        "financial_situation": "I have some savings",
+        "consent_given": True,
+    }
+
+    _MOCK_DIAGNOSTIC_OUTPUT = {
+        "overall_score": 60,
+        "language_score": 55,
+        "education_score": 65,
+        "pathway_fit_score": 60,
+        "timeline_score": 65,
+        "financial_score": 55,
+        "documentation_score": 60,
+        "summary": "Good candidate.",
+        "next_step_message": "Hi Ana, book a consultation.",
+        "roadmap": [{"month": 1, "title": "Start", "description": "Begin", "action_items": []}],
+        "recommendations": [],
+        "_ai_usage": None,
+    }
+
+    def _make_serialization_checking_supabase(self):
+        """Return a fake Supabase that raises TypeError on any non-JSON-serializable insert."""
+        import json as _json
+
+        outer = self
+
+        class _StrictQuery:
+            def __init__(self, client, table_name):
+                self._client = client
+                self._table_name = table_name
+                self._action = "select"
+                self._payload = None
+
+            def select(self, *args, **kwargs):
+                return self
+
+            def insert(self, payload):
+                self._action = "insert"
+                self._payload = payload
+                return self
+
+            def update(self, payload):
+                self._action = "update"
+                self._payload = payload
+                return self
+
+            def eq(self, *args, **kwargs):
+                return self
+
+            def single(self):
+                return self
+
+            def execute(self):
+                if self._action == "insert" and self._payload is not None:
+                    # Raises TypeError if any value is not JSON-serializable (e.g. a raw datetime).
+                    # This is what Supabase's HTTP layer does; the test replicates it locally.
+                    _json.dumps(self._payload)
+                    self._client.inserts.setdefault(self._table_name, []).append(self._payload)
+                if self._action == "update":
+                    return SimpleNamespace(data=[self._payload], count=1)
+                return SimpleNamespace(data=[{"id": "test-id"}], count=1)
+
+        class _StrictSupabase:
+            def __init__(self):
+                self.inserts = {}
+
+            def table(self, name):
+                return _StrictQuery(self, name)
+
+        return _StrictSupabase()
+
+    def setUp(self):
+        from services.rate_limiter import limiter
+        limiter._storage.reset()
+        self.client = TestClient(app)
+
+    def test_auto_generated_timestamp_is_json_serializable(self):
+        """When consent_timestamp is omitted, the router fills it in.
+        model_dump(mode='json') must convert the resulting datetime to a string
+        before the payload reaches Supabase — otherwise json.dumps raises TypeError.
+        """
+        fake_supa = self._make_serialization_checking_supabase()
+        with (
+            patch.object(diagnostic_router, "get_supabase", return_value=fake_supa),
+            patch.object(diagnostic_router, "run_diagnostic", return_value=self._MOCK_DIAGNOSTIC_OUTPUT),
+            patch.object(diagnostic_router, "notify_n8n"),
+            patch.object(diagnostic_router, "run_ausbildung_matching"),
+        ):
+            resp = self.client.post("/api/diagnostic/", json=self._BASE_PAYLOAD)
+
+        self.assertEqual(resp.status_code, 200, f"Expected 200, got {resp.status_code}: {resp.text}")
+        self.assertIn("students", fake_supa.inserts, "Students row must have been inserted")
+        student_row = fake_supa.inserts["students"][0]
+        self.assertIsInstance(
+            student_row.get("consent_timestamp"),
+            str,
+            "consent_timestamp in the Supabase payload must be a string, not a datetime",
+        )
+
+    def test_explicit_timestamp_string_is_json_serializable(self):
+        """An explicit ISO timestamp supplied by the client also survives json.dumps()."""
+        payload = {**self._BASE_PAYLOAD, "consent_timestamp": "2026-06-01T12:00:00Z"}
+        fake_supa = self._make_serialization_checking_supabase()
+        with (
+            patch.object(diagnostic_router, "get_supabase", return_value=fake_supa),
+            patch.object(diagnostic_router, "run_diagnostic", return_value=self._MOCK_DIAGNOSTIC_OUTPUT),
+            patch.object(diagnostic_router, "notify_n8n"),
+            patch.object(diagnostic_router, "run_ausbildung_matching"),
+        ):
+            resp = self.client.post("/api/diagnostic/", json=payload)
+
+        self.assertEqual(resp.status_code, 200, f"Expected 200, got {resp.status_code}: {resp.text}")
+
+    def test_bare_datetime_is_not_json_serializable(self):
+        """Document why mode='json' matters: a raw datetime object fails json.dumps().
+        This is not a router test — it confirms the failure mode we are guarding against.
+        """
+        import json as _json
+        from datetime import datetime, timezone
+
+        dt = datetime.now(timezone.utc)
+        with self.assertRaises(TypeError):
+            _json.dumps({"consent_timestamp": dt})
+
+
 if __name__ == "__main__":
     unittest.main()

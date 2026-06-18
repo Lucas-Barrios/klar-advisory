@@ -59,7 +59,7 @@ async def create_diagnostic(request: Request, student: StudentProfileInput, back
     usage_logged = False
     try:
         from datetime import datetime, timezone as _tz
-        student_data = student.model_dump()
+        student_data = student.model_dump(mode="json")
         if student_data.get("consent_timestamp") is None:
             student_data["consent_timestamp"] = datetime.now(_tz.utc).isoformat()
 
