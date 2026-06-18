@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { BarChart2, Briefcase, ShieldCheck, Lock, CheckCircle, ChevronDown } from 'lucide-react'
 import { useLanguage } from '@/lib/LanguageContext'
 import KlarLogo from '@/components/KlarLogo'
+import { useIsWide } from '@/lib/useIsWide'
+import DiagnosticPreviewCard from '@/components/DiagnosticPreviewCard'
 
 const KLAR_BLUE = '#2563EB'
 const BLUE_DIM = 'rgba(37,99,235,0.12)'
@@ -12,6 +14,7 @@ export default function HomePage() {
   const { t } = useLanguage()
   const l = t.landing
   const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const isWide = useIsWide()
 
   const stats = [
     { num: l.stat1Num, label: l.stat1Label },
@@ -39,107 +42,180 @@ export default function HomePage() {
     { q: l.faq5Q, a: l.faq5A },
   ]
 
+  /* Shared hero text content — rendered in both mobile and desktop layouts */
+  const heroText = (desktop: boolean) => (
+    <>
+      {/* Wordmark */}
+      <div style={{ marginBottom: '24px' }}>
+        <KlarLogo size="lg" />
+      </div>
+
+      {/* Pill badge */}
+      <div
+        className="inline-flex items-center rounded-full text-sm px-4 mb-3"
+        style={{
+          background: 'var(--accent-dim)',
+          border: '1px solid rgba(13,148,136,0.3)',
+          color: 'var(--accent-light)',
+          paddingTop: '6px',
+          paddingBottom: '6px',
+        }}
+      >
+        ✦ {l.badge}
+      </div>
+
+      {/* Slogan */}
+      <p
+        style={{
+          fontSize: '11px',
+          letterSpacing: '0.15em',
+          textTransform: 'uppercase',
+          color: '#6B7280',
+          marginTop: 0,
+          marginBottom: '12px',
+        }}
+      >
+        {l.slogan}
+      </p>
+
+      {/* Headline */}
+      <h1
+        className="font-bold"
+        style={{
+          fontSize: desktop ? 'clamp(2.5rem, 5vw, 4.5rem)' : 'clamp(3rem, 8vw, 6rem)',
+          letterSpacing: '-0.04em',
+          lineHeight: 0.95,
+          color: '#F9FAFB',
+          maxWidth: desktop ? '560px' : '700px',
+        }}
+      >
+        {l.headline1}
+        <br />
+        {l.headline2}
+        <br />
+        <span style={{ color: '#F9FAFB', letterSpacing: '-0.06em' }}>{l.headline3}</span>
+      </h1>
+
+      {/* Subheadline */}
+      <p
+        className="mt-6"
+        style={{
+          color: '#9CA3AF',
+          fontSize: '1.125rem',
+          maxWidth: '480px',
+          lineHeight: 1.6,
+        }}
+      >
+        {l.subheadline}
+      </p>
+
+      {/* CTA */}
+      <Link
+        href="/diagnostic"
+        className="cta-button inline-block mt-10 font-semibold"
+        style={{
+          background: 'var(--accent)',
+          color: 'white',
+          padding: '16px 32px',
+          borderRadius: '9999px',
+          fontSize: '1.125rem',
+          letterSpacing: '-0.01em',
+        }}
+      >
+        {l.cta}
+      </Link>
+
+      <Link
+        href="/results/demo"
+        className="block text-sm hover:text-white underline"
+        style={{ color: '#9CA3AF', marginTop: '12px' }}
+      >
+        {l.demoLink}
+      </Link>
+
+      <p className="mt-4 text-sm" style={{ color: '#6B7280' }}>
+        {l.ctaSub}
+      </p>
+    </>
+  )
+
   return (
     <div className="flex flex-col min-h-screen" style={{ background: '#0A0E1A' }}>
 
       {/* ── HERO ───────────────────────────────────────────────── */}
       <section
-        className="relative flex flex-col items-center justify-center text-center px-6 overflow-hidden"
-        style={{ minHeight: '100vh' }}
+        className="relative flex flex-col items-center justify-center overflow-hidden"
+        style={{ minHeight: '100vh', padding: isWide ? '0 48px' : '0 24px' }}
       >
-        <div style={{ position: 'relative', zIndex: 1 }} className="flex flex-col items-center">
-          {/* Wordmark */}
-          <div style={{ marginBottom: '24px' }}>
-            <KlarLogo size="lg" />
-          </div>
-
-          {/* Pill badge */}
+        {/* Gradient mesh blobs */}
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 0,
+            pointerEvents: 'none',
+            overflow: 'hidden',
+          }}
+        >
           <div
-            className="inline-flex items-center rounded-full text-sm px-4 mb-3"
             style={{
-              background: 'var(--accent-dim)',
-              border: '1px solid rgba(13,148,136,0.3)',
-              color: 'var(--accent-light)',
-              paddingTop: '6px',
-              paddingBottom: '6px',
-            }}
-          >
-            ✦ {l.badge}
-          </div>
-
-          {/* Slogan */}
-          <p
-            style={{
-              fontSize: '11px',
-              letterSpacing: '0.15em',
-              textTransform: 'uppercase',
-              color: '#6B7280',
-              marginTop: 0,
-              marginBottom: '12px',
-            }}
-          >
-            {l.slogan}
-          </p>
-
-          {/* Headline */}
-          <h1
-            className="font-bold"
-            style={{
-              fontSize: 'clamp(3rem, 8vw, 6rem)',
-              letterSpacing: '-0.04em',
-              lineHeight: 0.95,
-              color: '#F9FAFB',
-              maxWidth: '700px',
-            }}
-          >
-            {l.headline1}
-            <br />
-            {l.headline2}
-            <br />
-            <span style={{ color: '#F9FAFB', letterSpacing: '-0.06em' }}>{l.headline3}</span>
-          </h1>
-
-          {/* Subheadline */}
-          <p
-            className="mt-6"
-            style={{
-              color: '#9CA3AF',
-              fontSize: '1.125rem',
-              maxWidth: '480px',
-              lineHeight: 1.6,
-            }}
-          >
-            {l.subheadline}
-          </p>
-
-          {/* CTA */}
-          <Link
-            href="/diagnostic"
-            className="cta-button inline-block mt-10 font-semibold"
-            style={{
-              background: 'var(--accent)',
-              color: 'white',
-              padding: '16px 32px',
+              position: 'absolute',
+              width: '600px',
+              height: '600px',
               borderRadius: '9999px',
-              fontSize: '1.125rem',
-              letterSpacing: '-0.01em',
+              background: 'radial-gradient(circle, rgba(37,99,235,0.12) 0%, transparent 70%)',
+              top: '-100px',
+              left: '-100px',
+              animation: 'driftBlob1 12s ease-in-out infinite alternate',
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              width: '500px',
+              height: '500px',
+              borderRadius: '9999px',
+              background: 'radial-gradient(circle, rgba(13,148,136,0.08) 0%, transparent 70%)',
+              bottom: '-100px',
+              right: '-50px',
+              animation: 'driftBlob2 15s ease-in-out infinite alternate',
+            }}
+          />
+        </div>
+
+        {isWide ? (
+          /* Desktop: two-column grid */
+          <div
+            style={{
+              position: 'relative',
+              zIndex: 1,
+              display: 'grid',
+              gridTemplateColumns: '55% 45%',
+              maxWidth: '1200px',
+              width: '100%',
+              alignItems: 'center',
+              gap: '48px',
             }}
           >
-            {l.cta}
-          </Link>
-
-          <Link
-            href="/results/demo"
-            className="block text-sm hover:text-white underline"
-            style={{ color: '#9CA3AF', marginTop: '12px' }}
+            {/* Left column: text */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              {heroText(true)}
+            </div>
+            {/* Right column: floating card */}
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <DiagnosticPreviewCard />
+            </div>
+          </div>
+        ) : (
+          /* Mobile: single column, centered */
+          <div
+            style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}
+            className="flex flex-col items-center"
           >
-            {l.demoLink}
-          </Link>
-
-          <p className="mt-4 text-sm" style={{ color: '#6B7280' }}>
-            {l.ctaSub}
-          </p>
-        </div>
+            {heroText(false)}
+          </div>
+        )}
       </section>
 
       {/* ── STATS BAR ──────────────────────────────────────────── */}

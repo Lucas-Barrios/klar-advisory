@@ -184,3 +184,18 @@ body {
 
 .dot-pulse:nth-child(2) { animation-delay: 0.2s; }
 .dot-pulse:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes driftBlob1 {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(40px, 30px) scale(1.1); }
+}
+
+@keyframes driftBlob2 {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(-30px, -40px) scale(1.08); }
+}
+
+@keyframes cardFadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

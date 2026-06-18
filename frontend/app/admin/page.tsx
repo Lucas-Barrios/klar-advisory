@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Inbox, CheckCircle2, Gauge, Globe, Languages, GraduationCap, Clock, Mail } from 'lucide-react'
 import GermanFlag from '@/components/GermanFlag'
+import { useIsWide } from '@/lib/useIsWide'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 const ADMIN_TOKEN_STORAGE_KEY = 'klar_admin_api_token'
@@ -190,17 +191,6 @@ function isReviewed(row: DiagnosticRow): boolean {
   return row.status === 'approved' || row.status === 'rejected'
 }
 
-function useIsWide(): boolean {
-  const [wide, setWide] = useState(true)
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 900px)')
-    setWide(mq.matches)
-    const onChange = (e: MediaQueryListEvent) => setWide(e.matches)
-    mq.addEventListener('change', onChange)
-    return () => mq.removeEventListener('change', onChange)
-  }, [])
-  return wide
-}
 
 function PathwayBadge({ pathway }: { pathway: string }) {
   const map: Record<string, { bg: string; color: string; border: string; label: string }> = {
