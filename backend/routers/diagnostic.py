@@ -21,6 +21,7 @@ from services.progress_auth import (
 from services.rate_limiter import limiter
 from services.redaction import mask_email_for_log, mask_name_for_log
 import httpx
+import logging
 import os
 
 router = APIRouter()
@@ -404,35 +405,115 @@ def run_ausbildung_matching(diagnostic_id: str, student_id: str, student_data: d
             pass
 
 
-async def notify_student_approved(diagnostic_id: str, name: str, email: str):
-    webhook = os.getenv("N8N_APPROVAL_WEBHOOK_URL")
-    print(f"[N8N APPROVAL DEBUG] webhook env var resolved to: {webhook!r}")
+_notify_logger = logging.getLogger(__name__)
 
-    if not webhook:
-        print(f"[N8N APPROVAL DEBUG] No approval webhook configured, returning early")
+
+async def notify_student_approved(diagnostic_id: str, name: str, email: str) -> None:
+    resend_key = os.getenv("RESEND_API_KEY")
+    if not resend_key:
+        _notify_logger.warning("RESEND_API_KEY not set — skipping approval email")
         return
 
+    from_addr = os.getenv("RESEND_FROM_EMAIL", "hello@mail.kairosconsulting.co")
     frontend_url = os.getenv("FRONTEND_URL", "https://klar-advisory.vercel.app")
     results_url = f"{frontend_url}/results/{diagnostic_id}"
+    first_name = name.split()[0] if name else "there"
 
-    print(f"[N8N APPROVAL DEBUG] Attempting webhook call to: {webhook}")
+    html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#0F1117;font-family:system-ui,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr><td align="center" style="padding:40px 20px;">
+      <table width="560" cellpadding="0" cellspacing="0"
+             style="background:#111827;border-radius:16px;overflow:hidden;
+                    border:1px solid rgba(255,255,255,0.08);">
+
+        <!-- Header bar -->
+        <tr><td style="background:#2563EB;padding:20px 32px;">
+          <span style="font-size:20px;font-weight:800;color:#fff;
+                       letter-spacing:-0.03em;">Klar</span>
+        </td></tr>
+
+        <!-- Body -->
+        <tr><td style="padding:32px;">
+          <p style="margin:0 0 8px;font-size:22px;font-weight:700;
+                    color:#F9FAFB;letter-spacing:-0.02em;">
+            Your results are ready, {first_name} &#x1F389;
+          </p>
+          <p style="margin:0 0 24px;font-size:15px;color:#9CA3AF;
+                    line-height:1.6;">
+            A Klar consultant has reviewed your Germany Readiness
+            Diagnostic. Your personalised score, roadmap, and next
+            steps are ready to view.
+          </p>
+
+          <!-- CTA button -->
+          <a href="{results_url}"
+             style="display:inline-block;background:#2563EB;
+                    color:#fff;font-weight:700;font-size:15px;
+                    padding:14px 28px;border-radius:9999px;
+                    text-decoration:none;letter-spacing:-0.01em;">
+            View My Results &#x2192;
+          </a>
+
+          <!-- Divider -->
+          <hr style="margin:28px 0;border:none;
+                     border-top:1px solid rgba(255,255,255,0.08);">
+
+          <p style="margin:0;font-size:12px;color:#6B7280;
+                    line-height:1.6;">
+            This is a human-reviewed result &#x2014; not a raw AI output.
+            A Klar consultant has read your diagnostic and confirmed
+            it before it was approved.
+          </p>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="padding:16px 32px;
+                       border-top:1px solid rgba(255,255,255,0.06);">
+          <p style="margin:0;font-size:11px;color:#4B5563;">
+            Klar &#xB7; Germany Readiness Platform &#xB7;
+            <a href="{frontend_url}" style="color:#4B5563;">
+              klar-advisory.vercel.app
+            </a>
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
     try:
-        async with httpx.AsyncClient() as c:
-            print(
-                f"[N8N APPROVAL DEBUG] Sending payload: diagnostic_id={diagnostic_id!r}, "
-                f"student_name={mask_name_for_log(name)!r}, "
-                f"student_email={mask_email_for_log(email)!r}, "
-                f"results_url={results_url!r}"
+        async with httpx.AsyncClient(timeout=10) as http:
+            resp = await http.post(
+                "https://api.resend.com/emails",
+                headers={
+                    "Authorization": f"Bearer {resend_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "from": f"Klar <{from_addr}>",
+                    "to": [email],
+                    "subject": "Your Klar results are ready ✓",
+                    "html": html,
+                },
             )
-            response = await c.post(webhook, json={
-                "diagnostic_id": diagnostic_id,
-                "student_name": name,
-                "student_email": email,
-                "results_url": results_url
-            })
-            print(f"[N8N APPROVAL DEBUG] Webhook succeeded, status: {response.status_code}")
-    except Exception as e:
-        print(f"[N8N APPROVAL DEBUG] Webhook FAILED: {type(e).__name__}: {e}")
+        if resp.status_code >= 400:
+            _notify_logger.warning(
+                "Approval email send failed: status=%s body=%s",
+                resp.status_code,
+                resp.text[:200],
+            )
+        else:
+            _notify_logger.info(
+                "Approval email sent to %s for diagnostic %s",
+                mask_email_for_log(email),
+                diagnostic_id,
+            )
+    except Exception as exc:
+        _notify_logger.warning("Approval email failed: %s", exc)
 
 
 async def notify_n8n(diagnostic_id: str, name: str, email: str, pathway: str):
