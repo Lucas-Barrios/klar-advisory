@@ -12,6 +12,12 @@ from services.ai_observability import (
 
 client = Anthropic(max_retries=2)
 
+
+class DocumentAIError(RuntimeError):
+    def __init__(self, message: str, *, error_type: str | None = None):
+        super().__init__(message)
+        self.error_type = error_type
+
 DOCUMENT_PROMPT = """You are Klar's German Document Factory.
 You write professional, German-convention CV (Lebenslauf) STRUCTURE
 and cover letter (Anschreiben) DRAFTS for Latin American candidates
@@ -106,12 +112,31 @@ Return the JSON structure specified."""
         success=True,
     )
 
+    from pydantic import ValidationError
+    from models.ai_outputs import DocumentAIOutput
+
     raw = response.content[0].text.strip()
     if raw.startswith("```"):
         raw = raw.split("```")[1]
         if raw.startswith("json"):
             raw = raw[4:]
 
-    result = json.loads(raw.strip())
+    try:
+        parsed = json.loads(raw.strip())
+    except json.JSONDecodeError as exc:
+        raise DocumentAIError(
+            "Document response was not valid JSON.",
+            error_type="JSONDecodeError",
+        ) from exc
+
+    try:
+        validated = DocumentAIOutput.model_validate(parsed)
+    except ValidationError as exc:
+        raise DocumentAIError(
+            "Document response failed schema validation.",
+            error_type="SchemaValidationError",
+        ) from exc
+
+    result = validated.model_dump()
     result["_ai_usage"] = doc_usage
     return result

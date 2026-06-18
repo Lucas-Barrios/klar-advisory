@@ -1,5 +1,7 @@
 import json
+import logging
 import time
+from typing import Any
 
 from anthropic import Anthropic
 from database import get_supabase
@@ -14,7 +16,14 @@ from services.ai_observability import (
     persist_usage_event,
 )
 
+logger = logging.getLogger(__name__)
 client = Anthropic(max_retries=2)
+
+
+class MatchingAIError(RuntimeError):
+    def __init__(self, message: str, *, error_type: str | None = None):
+        super().__init__(message)
+        self.error_type = error_type
 
 MATCH_PROMPT = """You are Klar's Ausbildung Position Matcher.
 
@@ -66,11 +75,17 @@ def match_positions(
 
     # Sector classification: Haiku is sufficient for this simple 5-way routing task (max_tokens=20)
     sector_start = time.perf_counter()
-    sector_response = client.messages.create(
-        model=AI_MODEL_HAIKU,
-        max_tokens=20,
-        messages=[{"role": "user", "content": sector_prompt}],
-    )
+    try:
+        sector_response = client.messages.create(
+            model=AI_MODEL_HAIKU,
+            max_tokens=20,
+            messages=[{"role": "user", "content": sector_prompt}],
+        )
+    except Exception as exc:
+        raise MatchingAIError(
+            "Sector classification call failed.",
+            error_type=type(exc).__name__,
+        ) from exc
     sector_latency_ms = int((time.perf_counter() - sector_start) * 1000)
     sector_in, sector_out = extract_usage_tokens(sector_response)
     sector_usage = build_usage_event(
@@ -137,17 +152,40 @@ def match_positions(
     )
     persist_usage_event(supabase, rank_usage)
 
+    from pydantic import ValidationError
+    from models.ai_outputs import MatchAIOutput
+
     raw = response.content[0].text.strip()
     if raw.startswith("```"):
         raw = raw.split("```")[1]
         if raw.startswith("json"):
             raw = raw[4:]
 
-    result = json.loads(raw.strip())
+    try:
+        parsed = json.loads(raw.strip())
+    except json.JSONDecodeError as exc:
+        raise MatchingAIError(
+            "Matching response was not valid JSON.",
+            error_type="JSONDecodeError",
+        ) from exc
+
+    try:
+        validated = MatchAIOutput.model_validate(parsed)
+    except ValidationError as exc:
+        raise MatchingAIError(
+            "Matching response failed schema validation.",
+            error_type="SchemaValidationError",
+        ) from exc
+
+    result = validated.model_dump()
 
     position_lookup = {p["refnr"]: p for p in candidates.data}
     for match in result.get("matches", []):
-        full = position_lookup.get(match["refnr"], {})
+        refnr = match.get("refnr")
+        if not refnr:
+            logger.warning("match item missing refnr, skipping position lookup")
+            continue
+        full = position_lookup.get(refnr, {})
         match.update(
             {
                 "titel": full.get("titel"),

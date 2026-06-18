@@ -138,15 +138,35 @@ Return exactly this JSON structure:
 
 
 def parse_diagnostic_response(response: Any) -> dict:
-    raw = response.content[0].text.strip()
+    from pydantic import ValidationError
+    from models.ai_outputs import DiagnosticAIOutput
+
+    raw_text = response.content[0].text
+    raw = raw_text.strip()
     if raw.startswith("```"):
         raw = raw.split("```")[1]
         if raw.startswith("json"):
             raw = raw[4:]
     raw = raw.strip()
 
-    result = json.loads(raw)
-    result["raw_output"] = response.content[0].text
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise DiagnosticAIError(
+            "AI response was not valid JSON.",
+            error_type="JSONDecodeError",
+        ) from e
+
+    try:
+        validated = DiagnosticAIOutput.model_validate(parsed)
+    except ValidationError as e:
+        raise DiagnosticAIError(
+            "AI response failed schema validation.",
+            error_type="SchemaValidationError",
+        ) from e
+
+    result = validated.model_dump()
+    result["raw_output"] = raw_text
     return result
 
 
