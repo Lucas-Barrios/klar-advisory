@@ -428,7 +428,6 @@ async def notify_student_approved(diagnostic_id: str, name: str, email: str):
                 "results_url": results_url
             })
             print(f"[N8N APPROVAL DEBUG] Webhook succeeded, status: {response.status_code}")
-            print(f"[N8N APPROVAL DEBUG] Response body: {response.text}")
     except Exception as e:
         print(f"[N8N APPROVAL DEBUG] Webhook FAILED: {type(e).__name__}: {e}")
 
@@ -452,6 +451,6 @@ async def notify_n8n(diagnostic_id: str, name: str, email: str, pathway: str):
                 "pathway": pathway,
                 "review_url": os.getenv("ADMIN_URL", "http://localhost:3001") + "/admin"
             })
-            print(f"[N8N DEBUG] Webhook succeeded, status: {response.status_code}, body: {response.text[:200]}")
+            print(f"[N8N DEBUG] Webhook succeeded, status: {response.status_code}")
     except Exception as e:
         print(f"[N8N DEBUG] Webhook FAILED: {type(e).__name__}: {e}")

@@ -34,7 +34,7 @@ The exact model snapshot used for each diagnostic is stored in `diagnostics.ai_m
 
 **`claude-sonnet-4-6`** is a fully pinned snapshot identifier per the Anthropic API documentation. The SDK explicitly documents this string as complete — no date suffix should be appended (any date-suffixed variant such as `claude-sonnet-4-6-20251114` would be a training-data artefact, not a valid ID). The string as-is is the stable, pinned identifier.
 
-**`claude-haiku-4-5`** is an alias. The fully pinned snapshot ID is `claude-haiku-4-5-20251001`. Both IDs are present in `MODEL_PRICING` in `ai_observability.py` so cost is calculated correctly regardless of which form appears in telemetry.
+**`claude-haiku-4-5`** is the correct callable model ID per Anthropic API documentation — the string is complete as-is and should not have a date suffix appended. The dated form `claude-haiku-4-5-20251001` resolves to the same model and is present in `MODEL_PRICING` only to handle any legacy telemetry rows that may carry it; new code should always use `claude-haiku-4-5`.
 
 ### Model deprecation process
 
