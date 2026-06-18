@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <rect width="32" height="32" rx="7" fill="#2563EB"/>
+  <!-- Vertical bar of K -->
+  <rect x="8" y="7" width="4" height="18" rx="1.5" fill="white"/>
+  <!-- Upper arm of K -->
+  <polygon points="12,16 12,13 24,7 24,9.8" fill="white"/>
+  <!-- Lower arm of K -->
+  <polygon points="12,16 12,19 24,25 24,22.2" fill="white"/>
+</svg>
