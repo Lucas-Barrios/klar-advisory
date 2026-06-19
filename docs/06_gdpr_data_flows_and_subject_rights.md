@@ -159,10 +159,14 @@ RESULTS PAGE (Next.js — Vercel)
 | Processor | Location | Data Shared | Legal Basis | DPA Status |
 |---|---|---|---|---|
 | Anthropic (Claude API) | United States | Full student profile (inference input only, no storage) | Standard Contractual Clauses | **Action required: Sign Anthropic DPA before pilot** |
+| LangSmith (LangChain Inc.) | United States (EU endpoint: eu.api.smith.langchain.com) | Full LLM call inputs and outputs for every AI request (student profile data included in prompt) | SCCs | **DPA status: unconfirmed — action required before pilot** |
+| Resend | Ireland (EU-west-1) | Student email address and first name only (transactional emails: diagnostic approval notification, payment confirmation) | No transfer — EU-based (Ireland) | No DPA required — EU-based |
 | Supabase | EU (Frankfurt) | All stored data | EU-based — no transfer | Supabase DPA available at supabase.com/privacy |
 | Vercel | US (CDN) | No personal data — static assets and HTML only | N/A | N/A |
 | Render | US | Processes data in transit, no persistent storage | SCCs | Render DPA available |
 | n8n (self-hosted or cloud) | EU preferred | Name, email, diagnostic ID only | SCCs if cloud — self-hosted preferred | Configure before pilot |
+
+**Note on Anthropic and LangSmith:** LangSmith receives the same input data as Anthropic on every traced call via `wrap_anthropic()`. LangSmith's DPA must be signed alongside Anthropic's before pilot.
 
 ---
 

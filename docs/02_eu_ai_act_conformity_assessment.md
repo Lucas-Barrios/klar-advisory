@@ -13,7 +13,7 @@
 **Deployment context:** B2C web platform serving Spanish-speaking Latin Americans seeking Germany pathways
 
 **What the system does:**
-The system collects a structured profile from a student (language level, education, target pathway, timeline, financial situation) and uses a large language model (Anthropic Claude Sonnet) via a LangChain agent pipeline to:
+The system collects a structured profile from a student (language level, education, target pathway, timeline, financial situation) and uses a large language model (Anthropic Claude Sonnet) via a raw Anthropic Python SDK to:
 1. Score the student across 6 readiness dimensions (0–100 each)
 2. Generate an overall readiness score
 3. Produce a month-by-month roadmap

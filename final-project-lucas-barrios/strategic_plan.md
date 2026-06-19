@@ -242,8 +242,7 @@ The free diagnostic (UC-01) functions as the lead magnet. Every approved result 
 
 Two features are now gated behind a Stripe Checkout paywall, currently running in **Stripe TEST MODE only** — no real money changes hands, and only test API keys are in use:
 
-- **UC-02 full matched positions unlock — €19 (one-time):** the matches endpoint returns only the first matched position plus a locked count until payment is confirmed. Unlocking reveals all matched Ausbildung positions sourced from the Bundesagentur für Arbeit API.
-- **UC-04 full CV and cover letter generation — €15 (one-time):** the document generation endpoint returns HTTP 402 until payment is confirmed. Unlocking enables on-demand generation of a German-format CV and cover letter from the student's diagnostic data.
+- **Germany Application Kit — €39 (one-time):** unlocks both matched Ausbildung/job positions sourced from Bundesagentur für Arbeit AND bilingual CV + Cover Letter generation in German + English or Spanish. Both features are unlocked simultaneously by a single Stripe Checkout payment. The kit is offered after the student receives their free, human-reviewed diagnostic score.
 
 **Architecture:** a Stripe Checkout Session is created server-side on the FastAPI backend; a webhook endpoint with Stripe signature verification listens for `checkout.session.completed` and sets `matches_unlocked` or `documents_unlocked = true` on the relevant row in the `diagnostics` table (Supabase). The frontend reflects the unlocked state on next page load.
 
@@ -263,7 +262,7 @@ This is a **self-serve upsell layer** that converts without requiring Cleo's tim
 
 ### Phase 3 — Medium-term (months 2–4)
 
-- **Recurring subscription tier (~€19–29/month):** continuously refreshed Ausbildung matches, unlimited document regeneration, and monthly AI-generated progress check-ins.
+- **Future recurring tier (~€29/month):** continuously refreshed Ausbildung matches, unlimited document regeneration, and monthly AI-generated progress check-ins. Not yet implemented.
 - **Formalise Phase 1 manual sales:** replace ad hoc invoicing with an automated Stripe Payment Link sent immediately after each consultation call.
 
 ---

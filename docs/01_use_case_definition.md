@@ -34,7 +34,7 @@ The business problem is therefore twofold:
 
 **Klar** is a Germany readiness diagnostic platform built on an agentic AI pipeline.
 
-A student fills a multi-step conversational intake form (11 questions covering language level, education, pathway goals, timeline, and financial situation). A LangChain agent powered by Claude Sonnet analyses the profile and generates:
+A student fills a multi-step conversational intake form (11 questions covering language level, education, pathway goals, timeline, and financial situation). A raw Anthropic Python SDK powered by Claude Sonnet analyses the profile and generates:
 
 - An **overall readiness score** (0–100) across 6 dimensions
 - A **dimension breakdown** (Language, Education, Pathway Fit, Timeline, Financial, Documentation)
@@ -48,7 +48,7 @@ Before the student receives any results, Cleo reviews and approves the diagnosti
 **Tech stack:**
 - Frontend: Next.js 15 (TypeScript, Tailwind CSS)
 - Backend: FastAPI (Python)
-- AI Agent: LangChain + Anthropic Claude Sonnet
+- AI Agent: Anthropic Claude Sonnet (raw SDK, traced via LangSmith)
 - Database: Supabase (PostgreSQL)
 - Notifications: n8n workflow automation
 - Deployment: Vercel (frontend) + Render (backend)

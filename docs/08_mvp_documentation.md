@@ -39,6 +39,12 @@ Klar is a full-stack AI-powered product that delivers personalised Germany readi
 
 ---
 
+## 2.1 Observability
+
+LangSmith tracing is active on all three AI agents via `wrap_anthropic()`. Traces are routed to the EU LangSmith endpoint (eu.api.smith.langchain.com). Approval and payment confirmation emails are sent via Resend (hello@mail.kairosconsulting.co, verified EU sender domain).
+
+---
+
 ## 3. File Structure
 
 ```
@@ -376,7 +382,7 @@ npm run dev
 
 **Next use cases to implement:**
 - UC-02 Ausbildung Position Matcher — RAG pipeline with DAAD course data
-- UC-04 Document Factory — AI-generated German CV and cover letter
+- UC-04 Document Factory — bilingual CV (Lebenslauf) and cover letter (Anschreiben) in German + English or Spanish, with bracketed placeholders for unknown specifics
 - UC-05 Lead Nurturing — n8n workflow for follow-up sequences
 
 **Technical improvements for scale:**

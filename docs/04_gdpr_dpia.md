@@ -82,9 +82,13 @@ Student (results delivery)
 | Processor | Location | Data Received | Legal Basis for Transfer |
 |---|---|---|---|
 | Anthropic (Claude API) | United States | Full student profile (inference input) | Standard Contractual Clauses (SCCs) — Anthropic DPA |
+| LangSmith (LangChain Inc.) | United States (EU endpoint: eu.api.smith.langchain.com) | Full LLM call inputs and outputs for every AI request (student profile data included in prompt) | SCCs — DPA status: unconfirmed, action required before pilot |
+| Resend | Ireland (EU-west-1) | Student email address and first name only (transactional emails: diagnostic approval notification, payment confirmation) | No transfer — EU-based (Ireland) |
 | Supabase | EU (Frankfurt) | All stored data | No transfer — EU-based |
 | Vercel | US (CDN global) | No personal data — static assets only | N/A |
 | Render | US | Processes data in transit (no storage) | SCCs |
+
+**Note on Anthropic and LangSmith:** LangSmith receives the same input data as Anthropic on every traced call via `wrap_anthropic()`. LangSmith's DPA must be signed alongside Anthropic's before pilot.
 
 ---
 

@@ -20,7 +20,7 @@ Detailed description of what the system is designed to do, the population it ser
 Description of integrations: Anthropic Claude API (LLM inference), Supabase (data storage and retrieval), n8n (notification automation), Vercel (frontend hosting), Render (backend hosting). Data flows between each system component.
 
 **1.4 System Architecture Diagram**
-Visual diagram showing: Student → Next.js frontend → FastAPI backend → LangChain agent → Claude API → Supabase → Admin dashboard → Consultant → Student (approved results). Full request/response flow with data types at each step.
+Visual diagram showing: Student → Next.js frontend → FastAPI backend → Anthropic SDK agents (LangSmith-traced) → Claude API → Supabase → Admin dashboard → Consultant → Student (approved results). Full request/response flow with data types at each step.
 
 ---
 

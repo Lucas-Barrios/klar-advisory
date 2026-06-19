@@ -148,7 +148,7 @@ All scenarios result in positive ROI within 12 months. The investment case is ro
 | Risk | Likelihood | Impact | Score | Mitigation |
 |---|---|---|---|---|
 | LLM generates incorrect visa/legal advice at scale | 3/5 | 5/5 | **15/25** | Human review gate is mandatory architectural component. System prompt includes explicit disclaimer instructions. Consultant validates before delivery. |
-| Single LLM provider dependency (Anthropic) | 2/5 | 4/5 | **8/25** | Abstract LLM calls via LangChain — swapping providers requires changing 1 line. Evaluate Mistral AI (EU-based) as backup. |
+| Single LLM provider dependency (Anthropic) | 2/5 | 4/5 | **8/25** | LLM calls use the raw Anthropic SDK wrapped with LangSmith tracing — the client is instantiated in one place per agent file, so swapping providers requires changing the client constructor only. Evaluate Mistral AI (EU-based) as backup. |
 | Supabase outage affecting service | 2/5 | 3/5 | **6/25** | Supabase SLA 99.9% uptime. Automatic retry logic in FastAPI. Results page shows graceful error state. |
 | API cost spike at scale | 2/5 | 3/5 | **6/25** | Switch to smaller model (claude-haiku-4-5) for standard diagnostics at scale. Cost per diagnostic drops from €0.05 to €0.008. |
 
