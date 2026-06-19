@@ -4,6 +4,7 @@ import time
 from typing import TYPE_CHECKING
 
 from anthropic import Anthropic
+from langsmith import Client
 from langsmith.wrappers import wrap_anthropic
 from services.ai_observability import (
     AI_MODEL,
@@ -12,11 +13,13 @@ from services.ai_observability import (
     build_usage_event,
     extract_usage_tokens,
 )
+from services.trace_redaction import redact_trace_inputs
 
 if TYPE_CHECKING:
     from models.schemas import DocumentFacts
 
-client = wrap_anthropic(Anthropic(max_retries=2))
+_trace_client = Client(hide_inputs=redact_trace_inputs, hide_outputs=redact_trace_inputs)
+client = wrap_anthropic(Anthropic(max_retries=2), tracing_extra={"client": _trace_client})
 
 
 class DocumentAIError(RuntimeError):

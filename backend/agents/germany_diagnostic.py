@@ -5,6 +5,7 @@ from typing import Any
 
 from anthropic import Anthropic
 from dotenv import load_dotenv
+from langsmith import Client
 from langsmith.wrappers import wrap_anthropic
 from services.ai_observability import (
     AI_MODEL,
@@ -15,9 +16,11 @@ from services.ai_observability import (
     extract_usage_tokens,
     safe_error_type,
 )
+from services.trace_redaction import redact_trace_inputs
 
 load_dotenv()
 client: Anthropic | None = None
+_trace_client = Client(hide_inputs=redact_trace_inputs, hide_outputs=redact_trace_inputs)
 
 SYSTEM_PROMPT = """You are Klar's Germany Readiness Diagnostic Agent.
 You assess Latin American students and professionals who want to study or work in Germany.
@@ -128,7 +131,7 @@ def get_env_float(name: str, default: float, *, minimum: float, maximum: float) 
 def get_anthropic_client() -> Anthropic:
     global client
     if client is None:
-        client = wrap_anthropic(Anthropic(max_retries=2))
+        client = wrap_anthropic(Anthropic(max_retries=2), tracing_extra={"client": _trace_client})
     return client
 
 
