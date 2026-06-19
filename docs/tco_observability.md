@@ -71,6 +71,8 @@ The diagnostic agent uses:
 - `DIAGNOSTIC_MAX_INPUT_CHARS` defaulting to `8000`
 - `max_retries=2` on all Anthropic client instances (automatic retry on transient errors)
 
+The document factory (UC-04) uses a hardcoded `max_tokens=5000` ceiling. Any cost-per-request figures derived from this document for document generation are based on that ceiling as a proxy — not on measured average `output_tokens` from `ai_usage_events` — because no `document_factory` rows exist in production at the time of writing (pilot phase, 2026-06-19). Once sufficient rows accumulate, recalculate using `SELECT AVG(output_tokens), AVG(estimated_cost) FROM ai_usage_events WHERE request_type = 'document_factory' AND success = true` and update any stated figures accordingly.
+
 ## Applying The Migrations
 
 Apply migrations in order:

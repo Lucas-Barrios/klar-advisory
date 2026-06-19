@@ -73,3 +73,24 @@ The system has not been benchmarked under concurrent load. Anthropic API concurr
 
 **Limitation: Frontend errors.ts has two uncovered edge cases.**
 The `verify-session` 400 path (Stripe session not found) and the `create-checkout-session` 500 path currently return raw error strings rather than a typed user-facing message. These were identified in the audit but deferred; they affect error display only, not payment processing correctness.
+
+---
+
+## Observability and Traceability Known Limitations
+
+The following gaps were identified in a reliability audit on 2026-06-19. They are documented here as a record; none are blocking for the pilot phase.
+
+**Limitation: LangSmith receives unredacted prompts containing student PII.**
+Each Anthropic call traced via LangSmith includes the full system and user prompt, which contain the student's name, country, education history, and diagnostic answers. See the existing LangSmith GDPR processor entry in the privacy register — this is the same data-flow concern, not a separate one. Mitigation path: configure a LangSmith project-level data-masking rule or disable tracing for production before scaling.
+
+**Limitation: No request correlation ID spans a single diagnostic's multi-service call chain.**
+A diagnostic run invokes the Germany diagnostic agent, sector classifier, Ausbildung matcher, and optionally the document factory in sequence or as background tasks. Each generates its own LangSmith trace and `ai_usage_events` row, but there is no shared `correlation_id` that links them. Reconstructing the full chain for a given diagnostic requires joining on `diagnostic_id` and inferring ordering from timestamps.
+
+**Limitation: No aggregate error-rate or cost-overrun alerting exists.**
+Failures are logged to Render/Railway stderr and written to `ai_usage_events` (with `success=False`), but no threshold-based alert fires if the error rate or cumulative cost exceeds a bound. Mitigation path: add a Sentry DSN or a Supabase Edge Function cron that queries `ai_usage_events` and pages on anomalies.
+
+**Limitation: LangSmith traces are not grouped into a connected multi-step workflow per student.**
+Each service call (diagnostic, sector, match, document) creates an isolated LangSmith trace rather than a nested chain under a single parent run. There is no parent run ID threaded through the call chain, so LangSmith shows four unrelated traces rather than one cohesive workflow view per diagnostic.
+
+**Limitation: No student-facing feedback mechanism exists.**
+Students have no way to flag a diagnostic result as wrong, irrelevant, or harmful. This is distinct from the consultant review/approval flow (which is an operator-facing gate, not a student-facing signal). Absent student feedback, quality regression can only be detected via the operator's post-approval review or by running `scripts/measure_url_hallucination_rate.py` periodically.

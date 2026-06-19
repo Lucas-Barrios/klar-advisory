@@ -67,11 +67,13 @@ class FakeQuery:
         self.table_name = table_name
         self._filter_val = None
         self._in_vals = None
+        self._payload = None
 
     def select(self, *args, **kwargs):
         return self
 
     def insert(self, payload):
+        self._payload = payload
         return self
 
     def update(self, payload):
@@ -96,6 +98,8 @@ class FakeQuery:
             if self._in_vals is not None:
                 positions = [p for p in positions if p.get("refnr") in self._in_vals]
             return SimpleNamespace(data=positions)
+        if self._payload is not None:
+            self.client.inserts.setdefault(self.table_name, []).append(self._payload)
         return SimpleNamespace(data=[])
 
 
@@ -103,6 +107,7 @@ class FakeSupabase:
     def __init__(self, *, diagnostic_data=None, positions_data=None):
         self.diagnostic_data = diagnostic_data
         self.positions_data = positions_data or []
+        self.inserts: dict = {}
 
     def table(self, table_name):
         return FakeQuery(self, table_name)
@@ -339,6 +344,89 @@ class DocumentAIErrorSurfacingTests(unittest.TestCase):
 
         self.assertEqual(resp.status_code, 500)
         self.assertIn("temporarily unavailable", resp.json()["detail"])
+
+
+# ── Failure observability tests ───────────────────────────────────────────────
+
+class RegenerateFailureObservabilityTests(unittest.TestCase):
+    """Confirm that regeneration failures write a success=False ai_usage_events row."""
+
+    def setUp(self):
+        self.http = TestClient(app)
+
+    def _fake_supabase_unlocked(self):
+        diagnostic = {
+            "id": "diag-obs-1",
+            "documents_unlocked": True,
+            "student_id": "student-obs-1",
+            "students": SAMPLE_STUDENT,
+        }
+        return FakeSupabase(diagnostic_data=diagnostic)
+
+    def test_document_ai_error_writes_failure_usage_event(self):
+        """DocumentAIError in regenerate_documents must produce a success=False ai_usage_events row."""
+        from agents.document_factory import DocumentAIError
+        sb = self._fake_supabase_unlocked()
+
+        with patch("routers.diagnostic.get_supabase", return_value=sb), \
+             patch(
+                 "agents.document_factory.regenerate_documents",
+                 side_effect=DocumentAIError("JSON parse failed", error_type="JSONDecodeError"),
+             ):
+            resp = self.http.post(
+                "/api/diagnostic/diag-obs-1/regenerate-documents",
+                json={"target_language": "en"},
+            )
+
+        self.assertEqual(resp.status_code, 503)
+        rows = sb.inserts.get("ai_usage_events", [])
+        self.assertEqual(len(rows), 1, "Expected exactly one ai_usage_events row on failure")
+        row = rows[0]
+        self.assertFalse(row["success"])
+        self.assertEqual(row["request_type"], "document_factory")
+        self.assertEqual(row["error_type"], "JSONDecodeError")
+        self.assertEqual(row["diagnostic_id"], "diag-obs-1")
+        self.assertEqual(row["student_id"], "student-obs-1")
+
+    def test_generic_exception_writes_failure_usage_event(self):
+        """An unexpected exception in regenerate_documents must also produce a success=False row."""
+        sb = self._fake_supabase_unlocked()
+
+        with patch("routers.diagnostic.get_supabase", return_value=sb), \
+             patch(
+                 "agents.document_factory.regenerate_documents",
+                 side_effect=RuntimeError("network timeout"),
+             ):
+            resp = self.http.post(
+                "/api/diagnostic/diag-obs-1/regenerate-documents",
+                json={"target_language": "en"},
+            )
+
+        self.assertEqual(resp.status_code, 500)
+        rows = sb.inserts.get("ai_usage_events", [])
+        self.assertEqual(len(rows), 1, "Expected exactly one ai_usage_events row on failure")
+        row = rows[0]
+        self.assertFalse(row["success"])
+        self.assertEqual(row["request_type"], "document_factory")
+        self.assertEqual(row["error_type"], "RuntimeError")
+
+    def test_logging_failure_does_not_block_error_response(self):
+        """If record_ai_usage itself raises, the HTTPException still reaches the client."""
+        from agents.document_factory import DocumentAIError
+        sb = self._fake_supabase_unlocked()
+
+        with patch("routers.diagnostic.get_supabase", return_value=sb), \
+             patch(
+                 "agents.document_factory.regenerate_documents",
+                 side_effect=DocumentAIError("Schema error", error_type="SchemaValidationError"),
+             ), \
+             patch("routers.diagnostic.record_ai_usage", side_effect=RuntimeError("db down")):
+            resp = self.http.post(
+                "/api/diagnostic/diag-obs-1/regenerate-documents",
+                json={"target_language": "en"},
+            )
+
+        self.assertEqual(resp.status_code, 503)
 
 
 if __name__ == "__main__":

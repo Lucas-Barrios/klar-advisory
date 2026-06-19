@@ -5,7 +5,12 @@ from agents.document_factory import DocumentAIError
 from database import get_supabase
 from pydantic import BaseModel, Field, field_validator
 from services.ai_observability import (
+    AI_MODEL,
+    AI_PROVIDER,
+    REQUEST_TYPE_DOCUMENT_FACTORY,
+    build_usage_event,
     persist_usage_event,
+    safe_error_type,
     usage_event_with_context,
 )
 from services.admin_auth import extract_bearer_token
@@ -24,6 +29,7 @@ from services.redaction import mask_email_for_log, mask_name_for_log
 import httpx
 import logging
 import os
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -347,6 +353,7 @@ def generate_documents_endpoint(diagnostic_id: str, body: DocumentFactoryRequest
     student_data = (diagnostic.data or {}).get("students") or {}
     doc_student_id = (diagnostic.data or {}).get("student_id")
 
+    _doc_start = time.perf_counter()
     try:
         from agents.document_factory import generate_documents
         documents = generate_documents(
@@ -375,16 +382,56 @@ def generate_documents_endpoint(diagnostic_id: str, body: DocumentFactoryRequest
             exc,
             exc_info=True,
         )
+        try:
+            record_ai_usage(
+                supabase,
+                build_usage_event(
+                    provider=AI_PROVIDER,
+                    model=AI_MODEL,
+                    request_type=REQUEST_TYPE_DOCUMENT_FACTORY,
+                    diagnostic_id=diagnostic_id,
+                    student_id=doc_student_id,
+                    input_tokens=0,
+                    output_tokens=0,
+                    latency_ms=int((time.perf_counter() - _doc_start) * 1000),
+                    success=False,
+                    error_type=exc.error_type,
+                ),
+                diagnostic_id=diagnostic_id,
+                student_id=doc_student_id,
+            )
+        except Exception:
+            pass
         raise HTTPException(
             status_code=503,
             detail="Document generation is temporarily unavailable. Please try again later.",
         )
-    except Exception:
+    except Exception as exc:
         logger.error(
             "Unexpected error in generate_documents [diagnostic=%s]",
             diagnostic_id,
             exc_info=True,
         )
+        try:
+            record_ai_usage(
+                supabase,
+                build_usage_event(
+                    provider=AI_PROVIDER,
+                    model=AI_MODEL,
+                    request_type=REQUEST_TYPE_DOCUMENT_FACTORY,
+                    diagnostic_id=diagnostic_id,
+                    student_id=doc_student_id,
+                    input_tokens=0,
+                    output_tokens=0,
+                    latency_ms=int((time.perf_counter() - _doc_start) * 1000),
+                    success=False,
+                    error_type=safe_error_type(exc),
+                ),
+                diagnostic_id=diagnostic_id,
+                student_id=doc_student_id,
+            )
+        except Exception:
+            pass
         raise HTTPException(
             status_code=500,
             detail="Document generation is temporarily unavailable. Please try again later.",
@@ -417,6 +464,7 @@ def regenerate_documents_endpoint(diagnostic_id: str, body: DocumentFactoryReque
         except Exception:
             pass
 
+    _regen_start = time.perf_counter()
     try:
         from agents.document_factory import regenerate_documents
         documents = regenerate_documents(
@@ -447,16 +495,56 @@ def regenerate_documents_endpoint(diagnostic_id: str, body: DocumentFactoryReque
             exc,
             exc_info=True,
         )
+        try:
+            record_ai_usage(
+                supabase,
+                build_usage_event(
+                    provider=AI_PROVIDER,
+                    model=AI_MODEL,
+                    request_type=REQUEST_TYPE_DOCUMENT_FACTORY,
+                    diagnostic_id=diagnostic_id,
+                    student_id=doc_student_id,
+                    input_tokens=0,
+                    output_tokens=0,
+                    latency_ms=int((time.perf_counter() - _regen_start) * 1000),
+                    success=False,
+                    error_type=exc.error_type,
+                ),
+                diagnostic_id=diagnostic_id,
+                student_id=doc_student_id,
+            )
+        except Exception:
+            pass
         raise HTTPException(
             status_code=503,
             detail="Document regeneration is temporarily unavailable. Please try again later.",
         )
-    except Exception:
+    except Exception as exc:
         logger.error(
             "Unexpected error in regenerate_documents [diagnostic=%s]",
             diagnostic_id,
             exc_info=True,
         )
+        try:
+            record_ai_usage(
+                supabase,
+                build_usage_event(
+                    provider=AI_PROVIDER,
+                    model=AI_MODEL,
+                    request_type=REQUEST_TYPE_DOCUMENT_FACTORY,
+                    diagnostic_id=diagnostic_id,
+                    student_id=doc_student_id,
+                    input_tokens=0,
+                    output_tokens=0,
+                    latency_ms=int((time.perf_counter() - _regen_start) * 1000),
+                    success=False,
+                    error_type=safe_error_type(exc),
+                ),
+                diagnostic_id=diagnostic_id,
+                student_id=doc_student_id,
+            )
+        except Exception:
+            pass
         raise HTTPException(
             status_code=500,
             detail="Document regeneration is temporarily unavailable. Please try again later.",
