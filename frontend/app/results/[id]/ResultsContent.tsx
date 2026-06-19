@@ -407,6 +407,7 @@ export default function ResultsContent({
           <DocumentFactoryClient
             diagnosticId={id}
             documentsUnlocked={diagnostic.documents_unlocked ?? false}
+            matchesUnlocked={diagnostic.matches_unlocked ?? false}
             paymentJustSucceeded={paymentSuccess === true && (paymentProduct === 'kit' || paymentProduct === 'documents')}
             sessionId={sessionId}
           />

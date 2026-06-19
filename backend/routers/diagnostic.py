@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Header, Request, status
-from models.schemas import DocumentFactoryRequest, StudentProfileInput, DiagnosticResponse
+from models.schemas import DocumentFactoryRequest, DocumentFacts, StudentProfileInput, DiagnosticResponse
 from agents.germany_diagnostic import DiagnosticAIError, run_diagnostic
 from database import get_supabase
 from pydantic import BaseModel, Field, field_validator
@@ -371,6 +371,64 @@ def generate_documents_endpoint(diagnostic_id: str, body: DocumentFactoryRequest
         raise HTTPException(
             status_code=500,
             detail="Document generation is temporarily unavailable. Please try again later.",
+        )
+
+
+@router.post("/{diagnostic_id}/regenerate-documents")
+def regenerate_documents_endpoint(diagnostic_id: str, body: DocumentFactoryRequest = DocumentFactoryRequest()):
+    supabase = get_supabase()
+    try:
+        diagnostic = supabase.table("diagnostics").select(
+            "*, students(*)"
+        ).eq("id", diagnostic_id).single().execute()
+    except Exception as e:
+        raise HTTPException(status_code=404, detail="Diagnostic not found") from e
+
+    if not (diagnostic.data or {}).get("documents_unlocked"):
+        raise HTTPException(status_code=402, detail="Payment required to generate documents")
+
+    student_data = (diagnostic.data or {}).get("students") or {}
+    doc_student_id = (diagnostic.data or {}).get("student_id")
+
+    target_keywords: list[dict] = []
+    if body.target_position_ids:
+        try:
+            pos_result = supabase.table("ausbildung_positions").select(
+                "refnr, beruf, titel"
+            ).in_("refnr", body.target_position_ids).execute()
+            target_keywords = pos_result.data or []
+        except Exception:
+            pass
+
+    try:
+        from agents.document_factory import regenerate_documents
+        documents = regenerate_documents(
+            student_data,
+            facts=body.facts,
+            target_keywords=target_keywords,
+            target_language=body.target_language,
+            diagnostic_id=diagnostic_id,
+            student_id=doc_student_id,
+        )
+        doc_usage = documents.pop("_ai_usage", None)
+        if doc_usage:
+            try:
+                record_ai_usage(
+                    supabase,
+                    doc_usage,
+                    diagnostic_id=diagnostic_id,
+                    student_id=doc_student_id,
+                )
+            except Exception:
+                pass
+        return documents
+    except Exception:
+        import traceback
+        print("=== DOCUMENT REGENERATION FAILED ===")
+        print(traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail="Document regeneration is temporarily unavailable. Please try again later.",
         )
 
 

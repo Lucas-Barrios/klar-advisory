@@ -56,8 +56,26 @@ class StudentProfileInput(BaseModel):
             raise ValueError("email must be a valid email address")
         return value
 
+class DocumentFacts(BaseModel):
+    employer_name: Optional[str] = None
+    employer_location: Optional[str] = None
+    job_title: Optional[str] = None
+    employment_period: Optional[str] = None
+    employment_duties: Optional[str] = None
+    institution_name: Optional[str] = None
+    institution_location: Optional[str] = None
+    study_period: Optional[str] = None
+    street_address: Optional[str] = None
+    phone_number: Optional[str] = None
+    full_address: Optional[str] = None
+    city: Optional[str] = None
+    placeholder_values: Optional[dict[str, str]] = None
+
+
 class DocumentFactoryRequest(BaseModel):
     target_language: TargetLanguage = "en"
+    facts: Optional[DocumentFacts] = None
+    target_position_ids: Optional[list[str]] = None
 
 
 class DiagnosticResponse(BaseModel):
