@@ -4,11 +4,17 @@
 
 ---
 
+## A Note on Scope
+
+This project consolidates the POC and MVP deliverables into a single working product rather than building a separate no-code prototype alongside it. Given the time available, building a full-stack, production-hardened application — complete with human-in-the-loop review, EU AI Act and GDPR compliance work, and a live audit trail — demonstrated more about real-world AI deployment than a parallel no-code workflow would have. The sections below describe this working system as the proof of concept: what AI capability it demonstrates, what a production version would add beyond it, and how to reproduce it.
+
+---
+
 ## Demo Recording
 
-Live demo available at: https://klar-advisory.vercel.app
+**Live demo available at:** https://klar-advisory.vercel.app
 
-The live deployed application serves as the interactive demo. Record a 2–5 minute screen recording showing the full flow below.
+**[VIDEO LINK PLACEHOLDER — Lucas to insert the actual hosted link here before final submission, e.g. Loom or YouTube unlisted URL]**
 
 **What the recording should show:**
 1. Student fills the conversational intake form (11 questions, ~3 minutes)
@@ -29,7 +35,7 @@ The live deployed application serves as the interactive demo. Record a 2–5 min
 | Anthropic Claude Sonnet | LLM for diagnostic generation | Best-in-class instruction following, structured JSON output, low hallucination rate |
 | Supabase | Database and storage | PostgreSQL with Row Level Security, EU-region available for GDPR |
 | Next.js 15 | Frontend | TypeScript, server components, file-based routing |
-| n8n | Notification automation | Course-taught — planned for email delivery on approval |
+| n8n | Internal notification | Sends a webhook to alert the consultant when a new diagnostic needs review; student-facing emails (approval, payment confirmation) go through Resend directly |
 | Vercel | Frontend deployment | Zero-config Next.js, global CDN |
 | Render | Backend deployment | FastAPI-compatible, simple env var management |
 
@@ -85,7 +91,6 @@ Three capabilities demonstrated:
 | Scoring depends on student self-report | Student may misrepresent German level | Goethe Institut certificate verification integration |
 | No Spanish language version | Excludes students not comfortable in English | i18n frontend with Spanish translations (Month 3) |
 | Admin password hardcoded | Security risk at scale | JWT authentication with Supabase Auth |
-| No email delivery yet | Student must manually refresh results | n8n email workflow (webhook already wired in backend) |
 | Single LLM provider | Anthropic outage = service unavailable | Abstract client creation behind a factory function; provider swap is a localised change |
 | No rate limiting | Vulnerable to abuse at scale | Redis rate limiting before public launch |
 | Temperature 0.3, not zero | Minor score variation between identical profiles | Deterministic caching layer for repeated profiles |

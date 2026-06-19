@@ -6,7 +6,7 @@
 
 **Live product:** https://klar-advisory.vercel.app
 **GitHub repository:** https://github.com/Lucas-Barrios/klar-advisory
-**API docs:** https://klar-backend.onrender.com/docs
+**API docs:** https://klar-backend-ko6m.onrender.com/docs
 
 ---
 
@@ -33,6 +33,7 @@ Article 14 and GDPR Article 22.
 | `compliance/gdpr_documentation.md` | DPIA, data flows, processing register, data subject rights |
 | `strategic_plan.md` | Deployment phases, go-to-market, stakeholder comms, KPIs, commercialisation model |
 | `mvp/mvp_documentation.md` | Architecture, API docs, database schema, frontend pages, setup instructions |
+| `presentation.pptx` | Slide deck presented at final project demo |
 
 ---
 

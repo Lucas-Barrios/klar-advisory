@@ -10,7 +10,7 @@ Klar is a full-stack AI-powered product that delivers personalised Germany readi
 
 **Live URL:** https://klar-advisory.vercel.app
 **GitHub:** https://github.com/Lucas-Barrios/klar-advisory
-**API Docs:** https://klar-backend.onrender.com/docs
+**API Docs:** https://klar-backend-ko6m.onrender.com/docs
 
 ---
 
@@ -33,8 +33,11 @@ Klar is a full-stack AI-powered product that delivers personalised Germany readi
             EU Region — Frankfurt
                     │
                     ▼
-              n8n (planned)
-           Email notifications
+              n8n (active)
+        Internal notifications
+        (consultant alert on new
+        diagnostic; student emails
+        via Resend directly)
 ```
 
 ---
@@ -84,8 +87,8 @@ klar-advisory/
 │   ├── requirements.txt
 │   └── .env                    # Environment variables (not committed)
 │
-└── n8n/                        # Notification workflows (planned)
-    └── klar_notifications.json
+└── n8n/                        # Internal notification workflows
+    └── klar_notifications.json  # Webhook: alerts consultant on new diagnostic
 ```
 
 ---
@@ -110,7 +113,7 @@ The diagnostic agent is the heart of the product. It is implemented in `backend/
 3. Claude generates a JSON response with scores, summary, roadmap, and recommendations
 4. Response is parsed and validated
 5. Stored in Supabase with status `pending`
-6. n8n webhook fires to notify consultant (when configured)
+6. n8n webhook fires to alert the consultant that a new diagnostic needs review
 
 ### Scoring Rubric
 
@@ -135,8 +138,8 @@ The diagnostic agent is the heart of the product. It is implemented in `backend/
 
 ## 5. API Endpoints
 
-**Base URL:** `https://klar-backend.onrender.com`
-**Interactive docs:** `https://klar-backend.onrender.com/docs`
+**Base URL:** `https://klar-backend-ko6m.onrender.com`
+**Interactive docs:** `https://klar-backend-ko6m.onrender.com/docs`
 
 ### POST /api/diagnostic/
 Submit a new student diagnostic.
@@ -175,7 +178,7 @@ Submit a new student diagnostic.
 2. Agent runs — Claude generates scores, roadmap, recommendations
 3. Diagnostic saved to `diagnostics` table with `status: pending`
 4. Audit log entry created
-5. n8n webhook fired (if configured)
+5. n8n webhook fires to alert the consultant that a new diagnostic needs review
 
 ---
 
@@ -208,7 +211,7 @@ Approve or reject a diagnostic.
 1. Diagnostic status updated in Supabase
 2. `reviewed_at` timestamp set
 3. Audit log entry created (`review_approved` or `review_rejected`)
-4. (Planned) n8n webhook fires to send approval email to student
+4. Approval confirmation email sent to student via Resend
 
 Reviewer notes are stored in the diagnostic record for operational review, but notes written to generic audit/evaluation telemetry are redacted for direct identifiers.
 

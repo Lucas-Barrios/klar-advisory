@@ -91,7 +91,19 @@ Before the student receives any results, Cleo reviews and approves the diagnosti
 
 ---
 
-## 6. Why This Use Case First
+## 6. Out-of-Scope Boundaries
+
+Klar explicitly does not:
+- Provide legal immigration or visa advice — the diagnostic is an informational readiness assessment, not legal counsel
+- Guarantee admission, visa approval, or Ausbildung placement outcomes
+- Replace a licensed immigration lawyer or certified translator for official document submission
+- Verify the authenticity of user-reported information (financial situation, education credentials) — scores are based on self-reported data
+- Generate final, submission-ready legal/government documents — CV and cover letter outputs use bracketed placeholders for anything the AI cannot verify, requiring the student to confirm or complete all factual details before use
+- Operate without human review — no AI-generated diagnostic reaches a student without prior consultant approval, by design
+
+---
+
+## 7. Why This Use Case First
 
 UC-01 (Germany Readiness Diagnostic) was selected as the primary use case because it is the **architectural foundation** — every other AI capability in the roadmap depends on the student profile it generates. The Ausbildung Matcher (UC-02), Application Tracker (UC-03), and Document Factory (UC-04) all require knowing who the student is and what they need before they can operate.
 
