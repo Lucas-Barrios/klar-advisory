@@ -517,6 +517,13 @@ export default function DiagnosticPage() {
           key={`${currentQ}-${direction}`}
           className={direction === 'forward' ? 'slide-in-right' : 'slide-in-left'}
         >
+          {/* AI disclosure — shown on first question only */}
+          {currentQ === 0 && (
+            <p className="text-xs mb-6" style={{ color: '#6B7280', maxWidth: '560px', lineHeight: 1.5 }}>
+              {f.aiDisclosure}
+            </p>
+          )}
+
           {/* Counter */}
           <p className="text-sm mb-4" style={{ color: '#6B7280' }}>
             {currentQ + 1} / {questions.length}

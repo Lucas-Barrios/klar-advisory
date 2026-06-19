@@ -25,8 +25,13 @@ There is currently no automated metric for whether the diagnostic summary and ro
 
 ## UC-02 — Ausbildung Position Matching
 
+**Limitation: The BA job-search endpoint has no official third-party authorization or documented terms of service.**
+The endpoint `rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs` is not a published, developer-facing API. It is the same internal backend that powers Bundesagentur für Arbeit's own official Jobsuche app and website, accessed via a publicly-known shared client credential (`jobboerse-jobsuche`) with no official third-party authorization, documented terms of service, or commercial-use licensing. The data itself — publicly listed Ausbildung and job positions — is legitimate government public data. The access method, however, carries no contractual backing: BA could change or block this endpoint at any time without notice, and there is no documented permission for commercial redistribution of this data.
+
+This is an accepted, known risk for the MVP/pilot stage. **Recommended next step before scaling past pilot:** Contact Bundesagentur für Arbeit directly to ask about sanctioned data access for an education-consulting use case. Do not continue to rely on the unofficial endpoint indefinitely.
+
 **Limitation: German language requirements are AI-estimated, not employer-stated.**
-The positions sourced from the Bundesagentur für Arbeit API do not include German language requirements. The model estimates requirements based on occupation type using a rubric (e.g., patient-facing healthcare → B2 minimum). This estimate may be wrong for specific employers or regions. The UI surfaces this explicitly with a disclosure banner and marks positions with a "German level may be insufficient" warning badge when concern is flagged.
+The positions sourced from the Bundesagentur für Arbeit endpoint do not include German language requirements. The model estimates requirements based on occupation type using a rubric (e.g., patient-facing healthcare → B2 minimum). This estimate may be wrong for specific employers or regions. The UI surfaces this explicitly with a disclosure banner and marks positions with a "German level may be insufficient" warning badge when concern is flagged.
 
 **Limitation: Sector classification uses a 5-bucket heuristic.**
 The sector classification step (Haiku model) maps a free-text `field_of_study` to one of: nursing, mechatronics, it, hospitality, gastronomy. Fields that don't map cleanly (e.g., marine biology, architecture) may land in the wrong sector or return no matches.
