@@ -21,7 +21,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: backend
-        run: pip install -r requirements.txt stripe
+        run: pip install -r requirements.txt
 
       - name: Run test suite
         working-directory: backend
