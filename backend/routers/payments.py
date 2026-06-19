@@ -101,11 +101,9 @@ async def stripe_webhook(request: Request):
             )
             return {"status": "ok"}
 
-        # session.metadata may be a StripeObject in newer SDK versions; dict() handles both.
-        metadata = dict(session.metadata) if session.metadata else {}
-        diagnostic_id = metadata.get("diagnostic_id")
-        product = metadata.get("product")
-        target_language = metadata.get("target_language", "en")
+        diagnostic_id = getattr(session.metadata, "diagnostic_id", None)
+        product = getattr(session.metadata, "product", None)
+        target_language = getattr(session.metadata, "target_language", "en") or "en"
 
         if diagnostic_id and product in PRODUCTS:
             supabase = get_supabase()
@@ -160,10 +158,8 @@ def verify_session(session_id: str):
     if session.payment_status != "paid":
         return {"documents_unlocked": False, "matches_unlocked": False, "diagnostic_id": None}
 
-    # session.metadata may be a StripeObject in newer SDK versions; dict() handles both.
-    metadata = dict(session.metadata) if session.metadata else {}
-    diagnostic_id = metadata.get("diagnostic_id")
-    product = metadata.get("product")
+    diagnostic_id = getattr(session.metadata, "diagnostic_id", None)
+    product = getattr(session.metadata, "product", None)
 
     if not diagnostic_id or product not in PRODUCTS:
         return {"documents_unlocked": False, "matches_unlocked": False, "diagnostic_id": diagnostic_id}
