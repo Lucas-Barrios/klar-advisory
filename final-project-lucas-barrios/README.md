@@ -33,7 +33,7 @@ Article 14 and GDPR Article 22.
 | `compliance/gdpr_documentation.md` | DPIA, data flows, processing register, data subject rights |
 | `strategic_plan.md` | Deployment phases, go-to-market, stakeholder comms, KPIs, commercialisation model |
 | `mvp/mvp_documentation.md` | Architecture, API docs, database schema, frontend pages, setup instructions |
-| `presentation.pptx` | Slide deck presented at final project demo |
+| `presentation.pdf` | Slide deck presented at final project demo |
 
 ---
 

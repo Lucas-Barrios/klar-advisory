@@ -14,14 +14,8 @@ This project consolidates the POC and MVP deliverables into a single working pro
 
 **Live demo available at:** https://klar-advisory.vercel.app
 
-**[VIDEO LINK PLACEHOLDER — Lucas to insert the actual hosted link here before final submission, e.g. Loom or YouTube unlisted URL]**
-
-**What the recording should show:**
-1. Student fills the conversational intake form (11 questions, ~3 minutes)
-2. Loading screen with cycling AI messages
-3. Pending screen showing student email and diagnostic ID
-4. Admin dashboard — consultant reviews and approves
-5. Student refreshes results page — full score, roadmap, recommendations visible
+**Demo recording:** [Klar — Full Product Walkthrough](https://www.loom.com/share/d3969c3750504ee590ab2747daa97a23)
+(3-minute video — diagnostic, human review, payment, matched positions, bilingual document generation)
 
 ---
 

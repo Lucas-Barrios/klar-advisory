@@ -3,3 +3,4 @@ frontend/.env.local
 __pycache__/
 *.pyc
 supabase/.temp/
+docs/Klar - Demo.mp4
