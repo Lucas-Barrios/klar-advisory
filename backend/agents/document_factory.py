@@ -1,4 +1,5 @@
 import json
+import os
 import time
 from typing import TYPE_CHECKING
 
@@ -105,11 +106,13 @@ Target translation language: {lang_label}
 Return the four-field JSON structure specified (cv_de, anschreiben_de, cv_target, anschreiben_target)."""
 
     doc_start = time.perf_counter()
+    timeout = float(os.getenv("DOCUMENT_TIMEOUT_SECONDS", "60"))
     response = client.messages.create(
         model=AI_MODEL,
         max_tokens=5000,
         system=DOCUMENT_PROMPT,
         messages=[{"role": "user", "content": user_message}],
+        timeout=timeout,
     )
     doc_latency_ms = int((time.perf_counter() - doc_start) * 1000)
     doc_in, doc_out = extract_usage_tokens(response)
@@ -270,11 +273,13 @@ def regenerate_documents(
     )
 
     start = time.perf_counter()
+    timeout = float(os.getenv("DOCUMENT_TIMEOUT_SECONDS", "60"))
     response = client.messages.create(
         model=AI_MODEL,
         max_tokens=5000,
         system=system_prompt,
         messages=[{"role": "user", "content": user_message}],
+        timeout=timeout,
     )
     latency_ms = int((time.perf_counter() - start) * 1000)
     in_tok, out_tok = extract_usage_tokens(response)

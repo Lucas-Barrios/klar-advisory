@@ -127,7 +127,18 @@ async def stripe_webhook(request: Request):
 
             # Unlock all fields for this product in a single DB update.
             unlock_payload = {field: True for field in PRODUCTS[product]["unlock_fields"]}
-            supabase.table("diagnostics").update(unlock_payload).eq("id", diagnostic_id).execute()
+            try:
+                supabase.table("diagnostics").update(unlock_payload).eq("id", diagnostic_id).execute()
+            except Exception as exc:
+                logger.error(
+                    "Failed to unlock diagnostic %s after payment: %s",
+                    diagnostic_id,
+                    exc,
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail="Could not process payment confirmation",
+                )
 
             if product == "kit" and student_email:
                 await _send_kit_ready_email(

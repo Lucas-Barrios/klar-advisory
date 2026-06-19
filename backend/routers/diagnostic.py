@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Header, Request, status
 from models.schemas import DocumentFactoryRequest, DocumentFacts, StudentProfileInput, DiagnosticResponse
 from agents.germany_diagnostic import DiagnosticAIError, run_diagnostic
+from agents.document_factory import DocumentAIError
 from database import get_supabase
 from pydantic import BaseModel, Field, field_validator
 from services.ai_observability import (
@@ -23,6 +24,8 @@ from services.redaction import mask_email_for_log, mask_name_for_log
 import httpx
 import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -364,10 +367,24 @@ def generate_documents_endpoint(diagnostic_id: str, body: DocumentFactoryRequest
             except Exception:
                 pass
         return documents
-    except Exception as e:
-        import traceback
-        print("=== DOCUMENT GENERATION FAILED ===")
-        print(traceback.format_exc())
+    except DocumentAIError as exc:
+        logger.error(
+            "DocumentAIError in generate_documents [diagnostic=%s error_type=%s]: %s",
+            diagnostic_id,
+            exc.error_type,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Document generation is temporarily unavailable. Please try again later.",
+        )
+    except Exception:
+        logger.error(
+            "Unexpected error in generate_documents [diagnostic=%s]",
+            diagnostic_id,
+            exc_info=True,
+        )
         raise HTTPException(
             status_code=500,
             detail="Document generation is temporarily unavailable. Please try again later.",
@@ -422,10 +439,24 @@ def regenerate_documents_endpoint(diagnostic_id: str, body: DocumentFactoryReque
             except Exception:
                 pass
         return documents
+    except DocumentAIError as exc:
+        logger.error(
+            "DocumentAIError in regenerate_documents [diagnostic=%s error_type=%s]: %s",
+            diagnostic_id,
+            exc.error_type,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Document regeneration is temporarily unavailable. Please try again later.",
+        )
     except Exception:
-        import traceback
-        print("=== DOCUMENT REGENERATION FAILED ===")
-        print(traceback.format_exc())
+        logger.error(
+            "Unexpected error in regenerate_documents [diagnostic=%s]",
+            diagnostic_id,
+            exc_info=True,
+        )
         raise HTTPException(
             status_code=500,
             detail="Document regeneration is temporarily unavailable. Please try again later.",
@@ -463,12 +494,9 @@ def run_ausbildung_matching(diagnostic_id: str, student_id: str, student_data: d
             pass
 
 
-_notify_logger = logging.getLogger(__name__)
-
-
 async def notify_student_approved(diagnostic_id: str, name: str, email: str) -> None:
     if not email or "@" not in email:
-        _notify_logger.warning(
+        logger.warning(
             "Skipping approval email for diagnostic %s — no valid email",
             diagnostic_id,
         )
@@ -476,7 +504,7 @@ async def notify_student_approved(diagnostic_id: str, name: str, email: str) -> 
 
     resend_key = os.getenv("RESEND_API_KEY")
     if not resend_key:
-        _notify_logger.warning("RESEND_API_KEY not set — skipping approval email")
+        logger.warning("RESEND_API_KEY not set — skipping approval email")
         return
 
     from_addr = os.getenv("RESEND_FROM_EMAIL", "hello@mail.kairosconsulting.co")
@@ -566,33 +594,31 @@ async def notify_student_approved(diagnostic_id: str, name: str, email: str) -> 
                 },
             )
         if resp.status_code >= 400:
-            _notify_logger.warning(
+            logger.warning(
                 "Approval email send failed: status=%s body=%s",
                 resp.status_code,
                 resp.text[:200],
             )
         else:
-            _notify_logger.info(
+            logger.info(
                 "Approval email sent to %s for diagnostic %s",
                 mask_email_for_log(email),
                 diagnostic_id,
             )
     except Exception as exc:
-        _notify_logger.warning("Approval email failed: %s", exc)
+        logger.warning("Approval email failed: %s", exc)
 
 
 async def notify_n8n(diagnostic_id: str, name: str, email: str, pathway: str):
     webhook = os.getenv("N8N_WEBHOOK_URL")
-    print(f"[N8N DEBUG] notify_n8n called for diagnostic {diagnostic_id}")
-    print(f"[N8N DEBUG] webhook env var resolved to: {webhook!r}")
+    logger.info("notify_n8n called for diagnostic %s", diagnostic_id)
 
     if not webhook:
-        print(f"[N8N DEBUG] No webhook configured, returning early")
+        logger.warning("N8N_WEBHOOK_URL not set — skipping n8n notification for diagnostic %s", diagnostic_id)
         return
 
-    print(f"[N8N DEBUG] Attempting webhook call to: {webhook}")
     try:
-        async with httpx.AsyncClient() as c:
+        async with httpx.AsyncClient(timeout=10) as c:
             response = await c.post(webhook, json={
                 "diagnostic_id": diagnostic_id,
                 "student_name": name,
@@ -600,6 +626,13 @@ async def notify_n8n(diagnostic_id: str, name: str, email: str, pathway: str):
                 "pathway": pathway,
                 "review_url": os.getenv("ADMIN_URL", "http://localhost:3001") + "/admin"
             })
-            print(f"[N8N DEBUG] Webhook succeeded, status: {response.status_code}")
-    except Exception as e:
-        print(f"[N8N DEBUG] Webhook FAILED: {type(e).__name__}: {e}")
+        if response.status_code >= 400:
+            logger.warning(
+                "n8n webhook returned %s for diagnostic %s",
+                response.status_code,
+                diagnostic_id,
+            )
+        else:
+            logger.info("n8n webhook succeeded for diagnostic %s (status %s)", diagnostic_id, response.status_code)
+    except Exception as exc:
+        logger.error("n8n webhook failed for diagnostic %s: %s", diagnostic_id, exc, exc_info=True)

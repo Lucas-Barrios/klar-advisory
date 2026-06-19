@@ -49,3 +49,27 @@ Without a specific contact person, the letter uses "Sehr geehrte Damen und Herre
 
 **Limitation: All AI outputs are advisory, not authoritative.**
 Scores, match rankings, and document drafts are starting points, not final answers. Users should verify all information with official sources (employers, consulates, recognition authorities) before making decisions.
+
+---
+
+## Pilot-Phase Infrastructure Known Limitations
+
+The following gaps were identified in a reliability audit on 2026-06-19. They are deferred from the initial fix night (Items 1–4 of that audit were patched in the same session). They are documented here rather than fixed because they are acceptable during the pilot phase but should be addressed before scaling.
+
+**Limitation: No automated alerting on error-rate spikes.**
+There is no Sentry, Datadog, or equivalent integration. Server-side errors are logged but only visible by manually tailing Railway/Render logs or querying Supabase. During the pilot, the operator monitors logs actively; at scale this is not sustainable. Mitigation path: add a Sentry DSN and `sentry-sdk` integration to the FastAPI app.
+
+**Limitation: Supabase calls in most endpoints have no per-call error boundaries.**
+Only the Stripe webhook's critical DB unlock (payments.py) and the student-fetch block are individually try/caught. All other Supabase calls (audit log, progress updates, AI usage logging) can surface as unhandled 500s. During the pilot the Supabase service has been reliable; at scale or during Supabase incidents, these would need individual error boundaries with graceful degradation.
+
+**Limitation: No durable job queue — background tasks are in-process.**
+`BackgroundTasks` (FastAPI) runs position matching and n8n notification in the same process as the HTTP handler. If the server restarts mid-flight or a task crashes silently, there is no retry. The n8n webhook has a 10s timeout (patched 2026-06-19) and will log errors, but a missed webhook means the admin never receives the review notification for that diagnostic. Mitigation path: move background work to a durable queue (e.g., Celery + Redis, or a Supabase edge function trigger).
+
+**Limitation: No load testing has been run.**
+The system has not been benchmarked under concurrent load. Anthropic API concurrency limits, Supabase connection pool limits, and rate-limiter behaviour under traffic bursts are untested. The 5/hour per-IP rate limit on the diagnostic endpoint is the primary defence at pilot scale.
+
+**Limitation: Stripe SDK retry config is default.**
+`stripe` SDK retry behaviour is using library defaults (typically 2 retries). For the webhook path, Stripe's own retry mechanism is the safety net (raising 500 causes Stripe to retry). For the checkout-session creation path, a transient Stripe API error returns 500 to the user with no server-side retry. This is acceptable at pilot volume.
+
+**Limitation: Frontend errors.ts has two uncovered edge cases.**
+The `verify-session` 400 path (Stripe session not found) and the `create-checkout-session` 500 path currently return raw error strings rather than a typed user-facing message. These were identified in the audit but deferred; they affect error display only, not payment processing correctness.

@@ -7,6 +7,7 @@ Covers:
   - Keyword tailoring: target_position_ids are looked up and passed to regenerate_documents
   - _build_facts_block injects named fields and placeholder_values correctly
   - QA gate: has_incomplete_placeholders correctly detects [bracketed] text
+  - DocumentAIError surfaces as 503 (distinct from generic Exception 500) in both endpoints
 """
 import re
 import unittest
@@ -246,6 +247,98 @@ class RegenerateDocumentsEndpointTests(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         call_kwargs = mock_fn.call_args.kwargs
         self.assertEqual(call_kwargs["target_keywords"], [])
+
+
+# ── DocumentAIError surfacing tests ──────────────────────────────────────────
+
+class DocumentAIErrorSurfacingTests(unittest.TestCase):
+    """Confirm DocumentAIError is caught specifically (503) not swallowed into generic 500."""
+
+    def setUp(self):
+        self.http = TestClient(app)
+
+    def _fake_supabase_unlocked(self):
+        diagnostic = {
+            "id": "diag-123",
+            "documents_unlocked": True,
+            "student_id": "student-456",
+            "students": SAMPLE_STUDENT,
+        }
+        return FakeSupabase(diagnostic_data=diagnostic)
+
+    # generate-documents ──────────────────────────────────────────────────────
+
+    def test_generate_document_ai_error_returns_503(self):
+        """DocumentAIError from generate_documents must surface as 503, not 500."""
+        from agents.document_factory import DocumentAIError
+        sb = self._fake_supabase_unlocked()
+
+        with patch("routers.diagnostic.get_supabase", return_value=sb), \
+             patch(
+                 "agents.document_factory.generate_documents",
+                 side_effect=DocumentAIError("JSON parse failed", error_type="JSONDecodeError"),
+             ):
+            resp = self.http.post(
+                "/api/diagnostic/diag-123/generate-documents",
+                json={"target_language": "en"},
+            )
+
+        self.assertEqual(resp.status_code, 503)
+        self.assertIn("temporarily unavailable", resp.json()["detail"])
+
+    def test_generate_generic_exception_returns_500(self):
+        """A generic unexpected exception must still return 500, not 503."""
+        sb = self._fake_supabase_unlocked()
+
+        with patch("routers.diagnostic.get_supabase", return_value=sb), \
+             patch(
+                 "agents.document_factory.generate_documents",
+                 side_effect=RuntimeError("unexpected DB failure"),
+             ):
+            resp = self.http.post(
+                "/api/diagnostic/diag-123/generate-documents",
+                json={"target_language": "en"},
+            )
+
+        self.assertEqual(resp.status_code, 500)
+        self.assertIn("temporarily unavailable", resp.json()["detail"])
+
+    # regenerate-documents ────────────────────────────────────────────────────
+
+    def test_regenerate_document_ai_error_returns_503(self):
+        """DocumentAIError from regenerate_documents must surface as 503, not 500."""
+        from agents.document_factory import DocumentAIError
+        sb = self._fake_supabase_unlocked()
+
+        with patch("routers.diagnostic.get_supabase", return_value=sb), \
+             patch(
+                 "agents.document_factory.regenerate_documents",
+                 side_effect=DocumentAIError("Schema validation failed", error_type="SchemaValidationError"),
+             ):
+            resp = self.http.post(
+                "/api/diagnostic/diag-123/regenerate-documents",
+                json={"target_language": "en"},
+            )
+
+        self.assertEqual(resp.status_code, 503)
+        self.assertIn("temporarily unavailable", resp.json()["detail"])
+
+    def test_regenerate_generic_exception_returns_500(self):
+        """A generic unexpected exception must still return 500, not 503."""
+        sb = self._fake_supabase_unlocked()
+
+        with patch("routers.diagnostic.get_supabase", return_value=sb), \
+             patch(
+                 "agents.document_factory.regenerate_documents",
+                 side_effect=ValueError("unexpected serialisation error"),
+             ):
+            resp = self.http.post(
+                "/api/diagnostic/diag-123/regenerate-documents",
+                json={"target_language": "en"},
+            )
+
+        self.assertEqual(resp.status_code, 500)
+        self.assertIn("temporarily unavailable", resp.json()["detail"])
 
 
 if __name__ == "__main__":
