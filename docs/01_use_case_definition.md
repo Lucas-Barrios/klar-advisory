@@ -25,7 +25,7 @@ The business problem is therefore twofold:
 **Current state:** Manual intake process, 10–15 clients per month ceiling, German pathways focus
 **Location:** Berlin, Germany
 **Target market:** Spanish-speaking Latin Americans (Colombia, Brazil, Mexico, Chile, Peru) aged 20–40 pursuing university, Ausbildung, or work visa pathways in Germany
-**Revenue model:** B2C advisory fees (€99–€1,500 per engagement depending on service tier)
+**Revenue model:** Self-serve digital product — free AI diagnostic (lead generation + qualification) followed by a one-time €39 Germany Application Kit (matched positions + bilingual CV/cover letter). A free 15-minute consultation booking (Cal.com) is offered as an additional trust-building touchpoint, not a separate paid tier.
 **Technology maturity:** Low — currently using email, spreadsheets, and video calls
 
 ---
