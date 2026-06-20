@@ -10,5 +10,9 @@
   "document": {
     "prompt_hash": "5e25fb7c168071d0",
     "version": "document_factory_prompt_v2"
+  },
+  "regenerate": {
+    "prompt_hash": "1329efeb9d2a1bb1",
+    "version": "document_factory_regenerate_prompt_v2"
   }
 }

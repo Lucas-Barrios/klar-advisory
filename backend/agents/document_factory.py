@@ -161,7 +161,7 @@ Return the four-field JSON structure specified (cv_de, anschreiben_de, cv_target
     return result
 
 
-REGENERATE_PROMPT_VERSION = "document_factory_regenerate_prompt_v1"
+REGENERATE_PROMPT_VERSION = "document_factory_regenerate_prompt_v2"
 
 REGENERATE_SYSTEM = """You are Klar's German Document Factory — regeneration pass.
 You have already produced a first-draft CV and cover letter for this candidate.
@@ -231,13 +231,30 @@ def _build_facts_block(facts: "DocumentFacts | None") -> str:
 def _build_keywords_block(target_keywords: list[dict]) -> str:
     if not target_keywords:
         return ""
-    titles = ", ".join(
-        f"{p.get('beruf', '')} ({p.get('titel', '')})" for p in target_keywords if p.get("beruf")
-    )
+
+    blocks = []
+    for p in target_keywords:
+        beruf = p.get("beruf") or ""
+        titel = p.get("titel") or ""
+        full_desc = p.get("full_description")
+        if not beruf:
+            continue
+        entry = f"- Position: {beruf} ({titel})"
+        if full_desc:
+            entry += f"\n  Full posting text:\n{full_desc}"
+        blocks.append(entry)
+
+    if not blocks:
+        return ""
+
+    positions_text = "\n\n".join(blocks)
     return (
-        f"KEYWORD TAILORING — the student is applying to these positions: {titles}. "
-        "Where truthful and natural, use matching professional vocabulary in the Profil and Kompetenzen sections. "
-        "Never claim a skill or experience the student has not indicated, and never force unnatural keyword stuffing."
+        "TAILORING CONTEXT — the student is applying to the following position(s):\n\n"
+        f"{positions_text}\n\n"
+        "Naturally incorporate relevant language, responsibilities, and requirements from this posting "
+        "into the Profil and Kompetenzen sections — but only where it's truthfully consistent with "
+        "what the student has actually told you about their background. Never claim a skill, "
+        "certification, or experience the student hasn't indicated they have, even if the posting asks for it."
     )
 
 

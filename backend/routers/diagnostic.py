@@ -469,6 +469,13 @@ def regenerate_documents_endpoint(diagnostic_id: str, body: DocumentFactoryReque
         except Exception:
             pass
 
+        if target_keywords:
+            from services.ausbildung_cache import fetch_job_description
+            for pos in target_keywords:
+                refnr = pos.get("refnr")
+                if refnr:
+                    pos["full_description"] = fetch_job_description(refnr)
+
     _regen_start = time.perf_counter()
     try:
         from agents.document_factory import regenerate_documents

@@ -6,8 +6,10 @@ Covers:
   - POST /{diagnostic_id}/regenerate-documents calls regenerate_documents() when unlocked
   - Keyword tailoring: target_position_ids are looked up and passed to regenerate_documents
   - _build_facts_block injects named fields and placeholder_values correctly
+  - _build_keywords_block injects full posting text when available, falls back to title only
   - QA gate: has_incomplete_placeholders correctly detects [bracketed] text
   - DocumentAIError surfaces as 503 (distinct from generic Exception 500) in both endpoints
+  - Schema-valid output is produced with richer context block (FakeAnthropicClient)
 """
 import re
 import unittest
@@ -427,6 +429,147 @@ class RegenerateFailureObservabilityTests(unittest.TestCase):
             )
 
         self.assertEqual(resp.status_code, 503)
+
+
+# ── _build_keywords_block richer context tests ───────────────────────────────
+
+class BuildKeywordsBlockTests(unittest.TestCase):
+    def _run(self, keywords):
+        from agents.document_factory import _build_keywords_block
+        return _build_keywords_block(keywords)
+
+    def test_empty_list_returns_empty_string(self):
+        self.assertEqual(self._run([]), "")
+
+    def test_title_only_fallback_when_no_full_description(self):
+        result = self._run([{"beruf": "Pflegefachmann/-frau", "titel": "Azubi Pflege (m/w/d)"}])
+        self.assertIn("Pflegefachmann/-frau", result)
+        self.assertIn("Azubi Pflege (m/w/d)", result)
+        self.assertNotIn("Full posting text", result)
+
+    def test_full_description_included_when_present(self):
+        result = self._run([{
+            "beruf": "Pflegefachmann/-frau",
+            "titel": "Azubi Pflege (m/w/d)",
+            "full_description": "Du lernst die Grundlagen der Pflege...",
+        }])
+        self.assertIn("Full posting text", result)
+        self.assertIn("Du lernst die Grundlagen der Pflege...", result)
+
+    def test_full_description_none_falls_back_to_title_only(self):
+        result = self._run([{
+            "beruf": "Pflegefachmann/-frau",
+            "titel": "Azubi Pflege (m/w/d)",
+            "full_description": None,
+        }])
+        self.assertIn("Pflegefachmann/-frau", result)
+        self.assertNotIn("Full posting text", result)
+
+    def test_new_prompt_instruction_text_present(self):
+        result = self._run([{"beruf": "Pflegefachmann/-frau", "titel": "Azubi", "full_description": "Text here"}])
+        self.assertIn("truthfully consistent", result)
+        self.assertIn("Never claim a skill", result)
+
+    def test_positions_without_beruf_are_skipped(self):
+        result = self._run([{"beruf": "", "titel": "Azubi Pflege"}, {"beruf": "Mechatroniker", "titel": "Azubi Mechatronik"}])
+        self.assertIn("Mechatroniker", result)
+        self.assertNotIn("Azubi Pflege", result)
+
+
+# ── FakeAnthropicClient schema-valid regen with richer context ───────────────
+
+_VALID_DOC_BODY = {
+    "cv_de": {
+        "profil": "Engagierte Pflegefachkraft mit 3 Jahren Erfahrung.",
+        "ausbildung": [{"zeitraum": "[Zeitraum]", "beschreibung": "Schulabschluss in [Name]."}],
+        "berufserfahrung": [{"zeitraum": "2021–2024", "beschreibung": "Arbeit im Pflegebereich."}],
+        "sprachkenntnisse": [{"sprache": "Deutsch", "niveau": "B2"}],
+        "kompetenzen": ["Patientenversorgung", "Teamarbeit"],
+    },
+    "anschreiben_de": "Sehr geehrte Damen und Herren, ich bewerbe mich hiermit.",
+    "cv_target": {
+        "profil": "Dedicated care professional with 3 years of experience.",
+        "ausbildung": [{"zeitraum": "[Zeitraum]", "beschreibung": "Completed schooling at [Name]."}],
+        "berufserfahrung": [{"zeitraum": "2021–2024", "beschreibung": "Worked in nursing."}],
+        "sprachkenntnisse": [{"sprache": "German", "niveau": "B2"}],
+        "kompetenzen": ["Patient care", "Teamwork"],
+    },
+    "anschreiben_target": "Dear Sir or Madam, I am applying for this position.",
+}
+
+
+class _FakeMessages:
+    def __init__(self, response_body: dict):
+        import json
+        self._text = json.dumps(response_body)
+        self.calls: list[dict] = []
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        from types import SimpleNamespace
+        return SimpleNamespace(
+            content=[SimpleNamespace(text=self._text)],
+            usage=SimpleNamespace(input_tokens=100, output_tokens=200),
+        )
+
+
+class _FakeAnthropicClient:
+    def __init__(self, response_body: dict):
+        self.messages = _FakeMessages(response_body)
+
+
+class RegenSchemaValidWithRicherContextTests(unittest.TestCase):
+    """regenerate_documents() must produce schema-valid output when target_keywords
+    includes full posting text (the richer context block injected by _build_keywords_block)."""
+
+    def _run_regen(self, target_keywords):
+        fake_client = _FakeAnthropicClient(_VALID_DOC_BODY)
+        with patch("agents.document_factory.client", fake_client):
+            from agents.document_factory import regenerate_documents
+            return regenerate_documents(
+                SAMPLE_STUDENT,
+                target_keywords=target_keywords,
+                target_language="en",
+            )
+
+    def test_schema_valid_with_full_description_in_keywords(self):
+        keywords = [{
+            "refnr": "10000-111-S",
+            "beruf": "Pflegefachmann/-frau (Ausbildung)",
+            "titel": "Azubi Pflege (m/w/d)",
+            "full_description": "Wir suchen motivierte Auszubildende mit Sorgfalt und Empathie.",
+        }]
+        result = self._run_regen(keywords)
+        # regenerate_documents() returns _ai_usage; the endpoint pops it before sending to client
+        self.assertIn("cv_de", result)
+        self.assertIn("anschreiben_de", result)
+        self.assertIn("cv_target", result)
+        self.assertIn("anschreiben_target", result)
+
+    def test_schema_valid_with_title_only_keywords(self):
+        keywords = [{"refnr": "10000-222-S", "beruf": "Mechatroniker/-in", "titel": "Azubi Mechatronik"}]
+        result = self._run_regen(keywords)
+        self.assertIn("cv_de", result)
+
+    def test_schema_valid_with_no_keywords(self):
+        result = self._run_regen([])
+        self.assertIn("cv_de", result)
+
+    def test_system_prompt_contains_full_description_when_keywords_provided(self):
+        """Confirm the richer context block actually reaches the model call."""
+        keywords = [{
+            "refnr": "10000-333-S",
+            "beruf": "Pflegefachmann/-frau",
+            "titel": "Azubi Pflege",
+            "full_description": "UNIQUE_MARKER_XYZ987",
+        }]
+        fake_client = _FakeAnthropicClient(_VALID_DOC_BODY)
+        with patch("agents.document_factory.client", fake_client):
+            from agents.document_factory import regenerate_documents
+            regenerate_documents(SAMPLE_STUDENT, target_keywords=keywords, target_language="en")
+
+        call_kwargs = fake_client.messages.calls[0]
+        self.assertIn("UNIQUE_MARKER_XYZ987", call_kwargs["system"])
 
 
 if __name__ == "__main__":

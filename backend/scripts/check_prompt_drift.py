@@ -49,7 +49,7 @@ def _save_stored(data: dict) -> None:
 def _get_current_state() -> dict[str, str]:
     from agents.germany_diagnostic import SYSTEM_PROMPT
     from agents.ausbildung_matcher import MATCH_PROMPT
-    from agents.document_factory import DOCUMENT_PROMPT
+    from agents.document_factory import DOCUMENT_PROMPT, REGENERATE_SYSTEM
     # Import *_DEFAULT constants so env overrides can't produce false pass/fail.
     # A stray DIAGNOSTIC_PROMPT_VERSION env var would mask a real drift if we
     # imported the env-resolved constant here.
@@ -57,6 +57,7 @@ def _get_current_state() -> dict[str, str]:
         DIAGNOSTIC_PROMPT_VERSION_DEFAULT,
         MATCH_PROMPT_VERSION_DEFAULT,
         DOCUMENT_PROMPT_VERSION_DEFAULT,
+        REGENERATE_PROMPT_VERSION_DEFAULT,
     )
 
     return {
@@ -71,6 +72,10 @@ def _get_current_state() -> dict[str, str]:
         "document": {
             "prompt_hash": _hash_string(DOCUMENT_PROMPT),
             "version": DOCUMENT_PROMPT_VERSION_DEFAULT,
+        },
+        "regenerate": {
+            "prompt_hash": _hash_string(REGENERATE_SYSTEM),
+            "version": REGENERATE_PROMPT_VERSION_DEFAULT,
         },
     }
 
