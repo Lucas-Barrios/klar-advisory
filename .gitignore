@@ -4,3 +4,5 @@ __pycache__/
 *.pyc
 supabase/.temp/
 docs/Klar - Demo.mp4
+.DS_Store
+**/.DS_Store
