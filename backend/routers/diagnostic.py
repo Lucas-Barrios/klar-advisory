@@ -474,7 +474,7 @@ def regenerate_documents_endpoint(diagnostic_id: str, body: DocumentFactoryReque
             for pos in target_keywords:
                 refnr = pos.get("refnr")
                 if refnr:
-                    pos["full_description"] = fetch_job_description(refnr)
+                    pos["full_description"] = fetch_job_description(refnr, supabase)
 
     _regen_start = time.perf_counter()
     try:

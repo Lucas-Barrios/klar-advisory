@@ -35,16 +35,18 @@ def fetch_sector_positions(keyword: str, limit: int = 25) -> list[dict]:
         return []
 
 
-def fetch_job_description(refnr: str) -> str | None:
+def fetch_job_description(refnr: str, supabase) -> str | None:
     """Return the full posting text for a position, fetching and caching on demand.
+
+    Accepts the caller's supabase client rather than constructing its own so tests
+    can inject a mock without patching get_supabase() globally — the same convention
+    used by every other function in the codebase that needs DB access.
 
     Checks full_description_fetched_at to determine cache freshness.
     On any failure (HTTP error, missing DB columns, timeout), logs a warning
     and returns None so callers degrade gracefully — matches the resilience
     pattern used for target_keywords in diagnostic.py.
     """
-    supabase = get_supabase()
-
     # Cache-hit path: if fetched_at is set (even if description is NULL, we already tried)
     try:
         result = supabase.table("ausbildung_positions").select(
