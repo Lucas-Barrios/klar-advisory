@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
+from services.request_id import get_request_id
+
 
 AI_PROVIDER = "anthropic"
 AI_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
@@ -118,11 +120,14 @@ def build_usage_event(
     success: bool,
     error_type: str | None = None,
     created_at: str | None = None,
+    request_id: str | None = None,
 ) -> dict[str, Any]:
     safe_input_tokens = max(int(input_tokens or 0), 0)
     safe_output_tokens = max(int(output_tokens or 0), 0)
     safe_latency_ms = max(int(latency_ms or 0), 0)
     total_tokens = safe_input_tokens + safe_output_tokens
+
+    rid = request_id if request_id is not None else get_request_id()
 
     return {
         "provider": provider,
@@ -143,6 +148,7 @@ def build_usage_event(
         "success": bool(success),
         "error_type": None if success else (error_type or "AIError"),
         "created_at": created_at or utc_now_iso(),
+        "request_id": rid if rid != "-" else None,
     }
 
 
@@ -189,6 +195,7 @@ def persist_usage_event(supabase: Any, usage_event: dict[str, Any]) -> bool:
                     "action": "ai_usage_event",
                     "actor": "system",
                     "details": {"telemetry": event},
+                    "request_id": event.get("request_id"),
                 }
             ).execute()
             return True

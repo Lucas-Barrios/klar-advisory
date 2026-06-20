@@ -26,6 +26,7 @@ from services.progress_auth import (
 )
 from services.rate_limiter import limiter
 from services.redaction import mask_email_for_log, mask_name_for_log
+from services.request_id import get_request_id, set_request_id
 import httpx
 import logging
 import os
@@ -122,15 +123,18 @@ async def create_diagnostic(request: Request, student: StudentProfileInput, back
             "details": {"pathway": student.pathway}
         }).execute()
 
+        # Capture request_id now — contextvars don't auto-propagate into BackgroundTasks.
+        req_id = get_request_id()
+
         # Notify n8n in background
         background_tasks.add_task(
-            notify_n8n, diagnostic_id, student.name, student.email, student.pathway
+            notify_n8n, diagnostic_id, student.name, student.email, student.pathway, req_id
         )
 
         # Trigger position matching in background for ausbildung pathway
         if student.pathway == "ausbildung":
             background_tasks.add_task(
-                run_ausbildung_matching, diagnostic_id, student_id, student_data
+                run_ausbildung_matching, diagnostic_id, student_id, student_data, req_id
             )
 
         return DiagnosticResponse(
@@ -551,9 +555,16 @@ def regenerate_documents_endpoint(diagnostic_id: str, body: DocumentFactoryReque
         )
 
 
-def run_ausbildung_matching(diagnostic_id: str, student_id: str, student_data: dict) -> None:
+def run_ausbildung_matching(
+    diagnostic_id: str,
+    student_id: str,
+    student_data: dict,
+    request_id: str | None = None,
+) -> None:
     import logging as _logging
     _logger = _logging.getLogger(__name__)
+    if request_id:
+        set_request_id(request_id)
     supabase = get_supabase()
     try:
         from agents.ausbildung_matcher import match_positions
@@ -582,7 +593,14 @@ def run_ausbildung_matching(diagnostic_id: str, student_id: str, student_data: d
             pass
 
 
-async def notify_student_approved(diagnostic_id: str, name: str, email: str) -> None:
+async def notify_student_approved(
+    diagnostic_id: str,
+    name: str,
+    email: str,
+    request_id: str | None = None,
+) -> None:
+    if request_id:
+        set_request_id(request_id)
     if not email or "@" not in email:
         logger.warning(
             "Skipping approval email for diagnostic %s — no valid email",
@@ -697,7 +715,15 @@ async def notify_student_approved(diagnostic_id: str, name: str, email: str) -> 
         logger.warning("Approval email failed: %s", exc)
 
 
-async def notify_n8n(diagnostic_id: str, name: str, email: str, pathway: str):
+async def notify_n8n(
+    diagnostic_id: str,
+    name: str,
+    email: str,
+    pathway: str,
+    request_id: str | None = None,
+) -> None:
+    if request_id:
+        set_request_id(request_id)
     webhook = os.getenv("N8N_WEBHOOK_URL")
     logger.info("notify_n8n called for diagnostic %s", diagnostic_id)
 

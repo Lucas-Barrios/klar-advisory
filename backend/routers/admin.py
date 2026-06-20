@@ -28,6 +28,7 @@ from services.evaluation import (
 )
 from routers.diagnostic import notify_student_approved
 from services.redaction import redact_sensitive_text
+from services.request_id import get_request_id
 from services.statistical_evaluation import (
     create_evaluation_experiment,
     get_evaluation_experiment,
@@ -136,8 +137,9 @@ async def review_diagnostic(diagnostic_id: str, action: ReviewAction, background
                 "notification will be skipped",
                 diagnostic_id,
             )
+        req_id = get_request_id()
         background_tasks.add_task(
-            notify_student_approved, diagnostic_id, student_name, student_email
+            notify_student_approved, diagnostic_id, student_name, student_email, req_id
         )
 
     return {"status": "ok", "message": f"Diagnostic {action.status}"}
