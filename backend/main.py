@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from routers import diagnostic, admin, payments
+from services.db_safety import SupabaseOperationError
 from services.rate_limiter import limiter
 from services.request_id import RequestIdFilter, set_request_id
 
@@ -75,6 +76,14 @@ async def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONR
                 "Please wait a while before trying again."
             )
         },
+    )
+
+
+@app.exception_handler(SupabaseOperationError)
+async def _supabase_error_handler(request: Request, exc: SupabaseOperationError) -> JSONResponse:
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "A database operation failed. Please try again."},
     )
 
 app.include_router(diagnostic.router, prefix="/api/diagnostic", tags=["diagnostic"])

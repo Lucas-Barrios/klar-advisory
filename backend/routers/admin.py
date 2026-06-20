@@ -13,6 +13,7 @@ from models.schemas import (
 )
 from database import get_supabase
 from datetime import datetime, timezone
+from services.db_safety import supabase_guard
 from services.ai_observability import aggregate_monthly_usage
 from services.admin_auth import require_admin_authorization
 from services.evaluation import (
@@ -53,25 +54,28 @@ def student_redaction_identifiers(student: dict | None) -> list[str | None]:
 @router.get("/diagnostics")
 def get_pending():
     supabase = get_supabase()
-    result = supabase.table("diagnostics").select(
-        "*, students(*)"
-    ).eq("status", "pending").order("created_at", desc=False).execute()
+    with supabase_guard("fetching pending diagnostics for review queue"):
+        result = supabase.table("diagnostics").select(
+            "*, students(*)"
+        ).eq("status", "pending").order("created_at", desc=False).execute()
     return result.data
 
 @router.get("/diagnostics/{diagnostic_id}")
 def get_diagnostic(diagnostic_id: str):
     supabase = get_supabase()
-    result = supabase.table("diagnostics").select(
-        "*, students(*)"
-    ).eq("id", diagnostic_id).single().execute()
+    with supabase_guard("fetching diagnostic detail by id"):
+        result = supabase.table("diagnostics").select(
+            "*, students(*)"
+        ).eq("id", diagnostic_id).single().execute()
     return result.data
 
 @router.post("/diagnostics/{diagnostic_id}/review")
 async def review_diagnostic(diagnostic_id: str, action: ReviewAction, background_tasks: BackgroundTasks):
     supabase = get_supabase()
-    diagnostic = supabase.table("diagnostics").select(
-        "id, students(name, full_name, email)"
-    ).eq("id", diagnostic_id).single().execute()
+    with supabase_guard("fetching diagnostic for review"):
+        diagnostic = supabase.table("diagnostics").select(
+            "id, students(name, full_name, email)"
+        ).eq("id", diagnostic_id).single().execute()
     if not diagnostic.data:
         raise HTTPException(status_code=404, detail="Diagnostic not found")
 
@@ -93,18 +97,19 @@ async def review_diagnostic(diagnostic_id: str, action: ReviewAction, background
         redact_name_like=True,
     )
     reviewer_decision = action.reviewer_decision or action.status
-    supabase.table("diagnostics").update({
-        "status": action.status,
-        "reviewer_notes": action.reviewer_notes,
-        "reviewer_decision": reviewer_decision,
-        "reviewer_correction_notes": (
-            action.reviewer_correction_notes or action.reviewer_notes
-        ),
-        "reviewer_confidence": action.reviewer_confidence,
-        "rejection_reason": action.rejection_reason,
-        "review_duration_seconds": action.review_duration_seconds,
-        "reviewed_at": datetime.now(timezone.utc).isoformat()
-    }).eq("id", diagnostic_id).execute()
+    with supabase_guard("persisting review decision on diagnostic"):
+        supabase.table("diagnostics").update({
+            "status": action.status,
+            "reviewer_notes": action.reviewer_notes,
+            "reviewer_decision": reviewer_decision,
+            "reviewer_correction_notes": (
+                action.reviewer_correction_notes or action.reviewer_notes
+            ),
+            "reviewer_confidence": action.reviewer_confidence,
+            "rejection_reason": action.rejection_reason,
+            "review_duration_seconds": action.review_duration_seconds,
+            "reviewed_at": datetime.now(timezone.utc).isoformat()
+        }).eq("id", diagnostic_id).execute()
 
     try:
         supabase.table("ausbildung_matches").update({
@@ -114,19 +119,20 @@ async def review_diagnostic(diagnostic_id: str, action: ReviewAction, background
     except Exception as e:
         logger.warning("Failed to update ausbildung_matches status: %s", e)
 
-    supabase.table("audit_log").insert({
-        "diagnostic_id": diagnostic_id,
-        "action": f"review_{action.status}",
-        "actor": "consultant",
-        "details": {
-            "notes": sanitized_notes,
-            "reviewer_decision": reviewer_decision,
-            "reviewer_confidence": action.reviewer_confidence,
-            "rejection_reason": sanitized_rejection_reason,
-            "review_duration_seconds": action.review_duration_seconds,
-            "reviewer_correction_notes": sanitized_correction_notes,
-        }
-    }).execute()
+    with supabase_guard("inserting review audit log entry"):
+        supabase.table("audit_log").insert({
+            "diagnostic_id": diagnostic_id,
+            "action": f"review_{action.status}",
+            "actor": "consultant",
+            "details": {
+                "notes": sanitized_notes,
+                "reviewer_decision": reviewer_decision,
+                "reviewer_confidence": action.reviewer_confidence,
+                "rejection_reason": sanitized_rejection_reason,
+                "review_duration_seconds": action.review_duration_seconds,
+                "reviewer_correction_notes": sanitized_correction_notes,
+            }
+        }).execute()
 
     if action.status == "approved":
         student_name = student.get("name") or student.get("full_name") or ""
@@ -302,19 +308,22 @@ def post_evaluation_experiment_compare(
 @router.post("/diagnostics/{diagnostic_id}/mark-booked")
 def mark_booked(diagnostic_id: str):
     supabase = get_supabase()
-    result = supabase.table("diagnostics").select("id").eq("id", diagnostic_id).single().execute()
+    with supabase_guard("checking diagnostic exists before marking booked"):
+        result = supabase.table("diagnostics").select("id").eq("id", diagnostic_id).single().execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Diagnostic not found")
-    supabase.table("diagnostics").update({
-        "consultation_booked": True,
-        "consultation_booked_at": datetime.now(timezone.utc).isoformat(),
-    }).eq("id", diagnostic_id).execute()
-    supabase.table("audit_log").insert({
-        "diagnostic_id": diagnostic_id,
-        "action": "consultation_booked",
-        "actor": "consultant",
-        "details": {},
-    }).execute()
+    with supabase_guard("marking diagnostic consultation as booked"):
+        supabase.table("diagnostics").update({
+            "consultation_booked": True,
+            "consultation_booked_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("id", diagnostic_id).execute()
+    with supabase_guard("inserting consultation-booked audit log entry"):
+        supabase.table("audit_log").insert({
+            "diagnostic_id": diagnostic_id,
+            "action": "consultation_booked",
+            "actor": "consultant",
+            "details": {},
+        }).execute()
     return {"status": "ok"}
 
 
@@ -328,9 +337,10 @@ def refresh_positions():
 @router.get("/diagnostics/{diagnostic_id}/matches")
 def get_diagnostic_matches(diagnostic_id: str):
     supabase = get_supabase()
-    result = supabase.table("ausbildung_matches").select("*").eq(
-        "diagnostic_id", diagnostic_id
-    ).execute()
+    with supabase_guard("fetching ausbildung matches for diagnostic"):
+        result = supabase.table("ausbildung_matches").select("*").eq(
+            "diagnostic_id", diagnostic_id
+        ).execute()
     return result.data[0] if result.data else None
 
 
@@ -338,29 +348,34 @@ def get_diagnostic_matches(diagnostic_id: str):
 def get_stats():
     supabase = get_supabase()
 
-    pending = supabase.table("diagnostics").select(
-        "id", count="exact"
-    ).eq("status", "pending").execute()
+    with supabase_guard("fetching pending diagnostic count for stats"):
+        pending = supabase.table("diagnostics").select(
+            "id", count="exact"
+        ).eq("status", "pending").execute()
 
     today_start = datetime.now(timezone.utc).replace(
         hour=0, minute=0, second=0, microsecond=0
     ).isoformat()
-    approved_today = supabase.table("diagnostics").select(
-        "id", count="exact"
-    ).eq("status", "approved").gte("reviewed_at", today_start).execute()
+    with supabase_guard("fetching today's approved diagnostic count for stats"):
+        approved_today = supabase.table("diagnostics").select(
+            "id", count="exact"
+        ).eq("status", "approved").gte("reviewed_at", today_start).execute()
 
-    total = supabase.table("diagnostics").select(
-        "id", count="exact"
-    ).execute()
+    with supabase_guard("fetching total diagnostic count for stats"):
+        total = supabase.table("diagnostics").select(
+            "id", count="exact"
+        ).execute()
 
-    approved_count_result = supabase.table("diagnostics").select(
-        "id", count="exact"
-    ).eq("status", "approved").execute()
+    with supabase_guard("fetching total approved diagnostic count for stats"):
+        approved_count_result = supabase.table("diagnostics").select(
+            "id", count="exact"
+        ).eq("status", "approved").execute()
     approved_count = approved_count_result.count or 0
 
-    booked_count_result = supabase.table("diagnostics").select(
-        "id", count="exact"
-    ).eq("consultation_booked", True).execute()
+    with supabase_guard("fetching consultation-booked count for stats"):
+        booked_count_result = supabase.table("diagnostics").select(
+            "id", count="exact"
+        ).eq("consultation_booked", True).execute()
     booked_count = booked_count_result.count or 0
 
     conversion_rate = round((booked_count / approved_count) * 100, 1) if approved_count > 0 else 0

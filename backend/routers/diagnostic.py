@@ -24,6 +24,7 @@ from services.progress_auth import (
     hash_progress_token,
     verify_progress_token,
 )
+from services.db_safety import supabase_guard
 from services.rate_limiter import limiter
 from services.redaction import mask_email_for_log, mask_name_for_log
 from services.request_id import get_request_id, set_request_id
@@ -165,9 +166,7 @@ async def create_diagnostic(request: Request, student: StudentProfileInput, back
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        print("=== DIAGNOSTIC CREATION FAILED ===")
-        print(traceback.format_exc())
+        logger.error("Diagnostic creation failed", exc_info=True)
         if ai_usage_event and not usage_logged and student_id:
             try:
                 record_ai_usage(
@@ -180,7 +179,7 @@ async def create_diagnostic(request: Request, student: StudentProfileInput, back
                 pass
         raise HTTPException(
             status_code=500,
-            detail=f"Could not create diagnostic: {str(e)}",
+            detail="Could not create diagnostic. Please try again.",
         ) from e
 
 
@@ -263,9 +262,10 @@ def get_public_matches(diagnostic_id: str):
     if not diagnostic.data or diagnostic.data.get("status") != "approved":
         raise HTTPException(status_code=404, detail="Matches not available")
 
-    result = supabase.table("ausbildung_matches").select("*").eq(
-        "diagnostic_id", diagnostic_id
-    ).execute()
+    with supabase_guard("fetching ausbildung matches for public result page"):
+        result = supabase.table("ausbildung_matches").select("*").eq(
+            "diagnostic_id", diagnostic_id
+        ).execute()
 
     if not result.data:
         return None
@@ -338,7 +338,8 @@ def update_progress(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Failed to update progress for diagnostic %s", diagnostic_id, exc_info=True)
+        raise HTTPException(status_code=500, detail="Could not update progress. Please try again.")
 
 
 @router.post("/{diagnostic_id}/generate-documents")
