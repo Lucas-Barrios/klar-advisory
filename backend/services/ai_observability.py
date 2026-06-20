@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
+from services.alerting import check_and_alert_cost, check_and_alert_error_rate
 from services.request_id import get_request_id
 
 
@@ -178,7 +179,6 @@ def persist_usage_event(supabase: Any, usage_event: dict[str, Any]) -> bool:
     event = {k: v for k, v in usage_event.items() if k not in PII_TELEMETRY_KEYS}
     try:
         supabase.table("ai_usage_events").insert(event).execute()
-        return True
     except Exception as primary_error:
         logger.warning(
             "ai_usage_events persistence failed; attempting audit_log fallback",
@@ -210,6 +210,13 @@ def persist_usage_event(supabase: Any, usage_event: dict[str, Any]) -> bool:
                 },
             )
             return False
+    # Primary insert succeeded — run alert checks (each catches its own exceptions).
+    try:
+        check_and_alert_error_rate(supabase)
+        check_and_alert_cost(supabase)
+    except Exception as alert_exc:
+        logger.warning("Alert check failed (non-blocking): %s", alert_exc)
+    return True
 
 
 def parse_event_datetime(value: Any) -> datetime | None:
