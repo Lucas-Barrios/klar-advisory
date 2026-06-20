@@ -75,40 +75,6 @@ const KNOWN_PLACEHOLDERS: Record<string, { label: string; factsKey: keyof Omit<D
   'Telefon': { label: 'Phone number', factsKey: 'phone_number' },
 }
 
-function extractPlaceholders(docs: Documents | null): string[] {
-  if (!docs) return []
-  const all: string[] = []
-  const cvDe = docs.cv_de ?? docs.cv
-  const pushCv = (cv: CVData | null | undefined) => {
-    if (!cv) return
-    all.push(cv.profil)
-    cv.ausbildung?.forEach(e => { all.push(e.zeitraum, e.beschreibung) })
-    cv.berufserfahrung?.forEach(e => { all.push(e.zeitraum, e.beschreibung) })
-    cv.kompetenzen?.forEach(k => all.push(k))
-  }
-  pushCv(cvDe)
-  pushCv(docs.cv_target ?? null)
-  if (docs.anschreiben_de) all.push(docs.anschreiben_de)
-  else if (docs.anschreiben) all.push(docs.anschreiben)
-  if (docs.anschreiben_target) all.push(docs.anschreiben_target)
-
-  const seen = new Set<string>()
-  const result: string[] = []
-  for (const text of all) {
-    const matches = text?.matchAll(PLACEHOLDER_RE) ?? []
-    for (const m of matches) {
-      const inner = m[1]
-      // Skip signature/name lines — not fillable facts
-      if (['Unterschrift', 'Ihr vollständiger Name', 'Ihre E-Mail'].includes(inner)) continue
-      if (!seen.has(inner)) {
-        seen.add(inner)
-        result.push(inner)
-      }
-    }
-  }
-  return result
-}
-
 export function hasIncompletePlaceholders(text: string): boolean {
   return /\[[^\]]+\]/.test(text)
 }
@@ -144,26 +110,90 @@ function remainingPlaceholderList(docs: Documents): string[] {
   return result
 }
 
+// ─── Inline-editable placeholder ─────────────────────────────────────────────
+
+function EditablePlaceholder({
+  inner,
+  facts,
+  setFacts,
+}: {
+  inner: string
+  facts: Record<string, string>
+  setFacts: React.Dispatch<React.SetStateAction<Record<string, string>>>
+}) {
+  const [editing, setEditing] = useState(false)
+  const value = facts[inner] ?? ''
+  const filled = value.trim().length > 0
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        type="text"
+        value={value}
+        onChange={e => setFacts(f => ({ ...f, [inner]: e.target.value }))}
+        onBlur={() => setEditing(false)}
+        onKeyDown={e => { if (e.key === 'Enter') setEditing(false) }}
+        style={{
+          font: 'inherit',
+          fontSize: 'inherit',
+          fontWeight: 'inherit',
+          color: '#14B8A6',
+          background: 'transparent',
+          border: 'none',
+          borderBottom: '1.5px solid #14B8A6',
+          outline: 'none',
+          padding: '0 2px',
+          minWidth: `${Math.max((value.length || inner.length) + 4, 6)}ch`,
+          display: 'inline',
+          verticalAlign: 'baseline',
+        }}
+      />
+    )
+  }
+
+  return (
+    <span
+      onClick={() => setEditing(true)}
+      title={`Click to fill in: ${inner}`}
+      style={{
+        background: filled ? 'rgba(20,184,166,0.1)' : 'rgba(245,158,11,0.15)',
+        color: filled ? '#14B8A6' : '#F59E0B',
+        padding: '0 3px',
+        borderRadius: 3,
+        fontWeight: 500,
+        cursor: 'pointer',
+        borderBottom: filled ? '1.5px solid #14B8A6' : 'none',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {filled ? value : `[${inner}]`}
+    </span>
+  )
+}
+
 // ─── Placeholder highlighting ─────────────────────────────────────────────────
 
-function HighlightedText({ text }: { text: string }) {
+function HighlightedText({
+  text,
+  facts,
+  setFacts,
+}: {
+  text: string
+  facts: Record<string, string>
+  setFacts: React.Dispatch<React.SetStateAction<Record<string, string>>>
+}) {
   const parts = text.split(/(\[[^\]]*\])/g)
   return (
     <>
       {parts.map((part, i) =>
         /^\[[^\]]*\]$/.test(part) ? (
-          <span
+          <EditablePlaceholder
             key={i}
-            style={{
-              background: 'rgba(245,158,11,0.15)',
-              color: '#F59E0B',
-              padding: '0 3px',
-              borderRadius: 3,
-              fontWeight: 500,
-            }}
-          >
-            {part}
-          </span>
+            inner={part.slice(1, -1)}
+            facts={facts}
+            setFacts={setFacts}
+          />
         ) : (
           part
         )
@@ -174,17 +204,46 @@ function HighlightedText({ text }: { text: string }) {
 
 // ─── Collapsible CV column ────────────────────────────────────────────────────
 
-function CVColumn({ cv, anschreiben }: { cv: CVData; anschreiben: string }) {
+function CVColumn({
+  cv,
+  anschreiben,
+  facts,
+  setFacts,
+  regenerating,
+}: {
+  cv: CVData
+  anschreiben: string
+  facts: Record<string, string>
+  setFacts: React.Dispatch<React.SetStateAction<Record<string, string>>>
+  regenerating: boolean
+}) {
   const [open, setOpen] = useState(false)
 
   return (
-    <div>
+    <div style={{ position: 'relative' }}>
+      {regenerating && (
+        <div style={{
+          position: 'absolute',
+          inset: -18,
+          borderRadius: 12,
+          background: 'rgba(0,0,0,0.45)',
+          zIndex: 10,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backdropFilter: 'blur(2px)',
+          animation: 'cvPulse 1.5s ease-in-out infinite',
+        }}>
+          <span style={{ color: '#60A5FA', fontSize: 13, fontWeight: 500 }}>Updating your document…</span>
+        </div>
+      )}
+
       <div style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 10, fontWeight: 700, color: '#2563EB', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>
           Profile
         </div>
         <p style={{ fontSize: 13, color: '#D1D5DB', lineHeight: 1.65, margin: 0 }}>
-          <HighlightedText text={cv.profil} />
+          <HighlightedText text={cv.profil} facts={facts} setFacts={setFacts} />
         </p>
       </div>
 
@@ -215,8 +274,8 @@ function CVColumn({ cv, anschreiben }: { cv: CVData; anschreiben: string }) {
               <div style={{ fontWeight: 700, color: '#9CA3AF', marginBottom: 5, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Education</div>
               {cv.ausbildung.map((e, i) => (
                 <div key={i} style={{ marginBottom: 5, paddingLeft: 10, borderLeft: '2px solid rgba(37,99,235,0.3)' }}>
-                  <div style={{ color: '#F59E0B', fontSize: 11, fontWeight: 600 }}><HighlightedText text={e.zeitraum} /></div>
-                  <div><HighlightedText text={e.beschreibung} /></div>
+                  <div style={{ color: '#F59E0B', fontSize: 11, fontWeight: 600 }}><HighlightedText text={e.zeitraum} facts={facts} setFacts={setFacts} /></div>
+                  <div><HighlightedText text={e.beschreibung} facts={facts} setFacts={setFacts} /></div>
                 </div>
               ))}
             </div>
@@ -226,8 +285,8 @@ function CVColumn({ cv, anschreiben }: { cv: CVData; anschreiben: string }) {
               <div style={{ fontWeight: 700, color: '#9CA3AF', marginBottom: 5, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Experience</div>
               {cv.berufserfahrung.map((e, i) => (
                 <div key={i} style={{ marginBottom: 5, paddingLeft: 10, borderLeft: '2px solid rgba(37,99,235,0.3)' }}>
-                  <div style={{ color: '#F59E0B', fontSize: 11, fontWeight: 600 }}><HighlightedText text={e.zeitraum} /></div>
-                  <div><HighlightedText text={e.beschreibung} /></div>
+                  <div style={{ color: '#F59E0B', fontSize: 11, fontWeight: 600 }}><HighlightedText text={e.zeitraum} facts={facts} setFacts={setFacts} /></div>
+                  <div><HighlightedText text={e.beschreibung} facts={facts} setFacts={setFacts} /></div>
                 </div>
               ))}
             </div>
@@ -276,7 +335,7 @@ function CVColumn({ cv, anschreiben }: { cv: CVData; anschreiben: string }) {
           lineHeight: 1.7,
           whiteSpace: 'pre-wrap',
         }}>
-          <HighlightedText text={anschreiben} />
+          <HighlightedText text={anschreiben} facts={facts} setFacts={setFacts} />
         </div>
       </div>
     </div>
@@ -635,9 +694,6 @@ export default function DocumentFactoryClient({
   const langFlag = lang === 'es' ? '🇪🇸' : '🇬🇧'
   const langLabel = lang === 'es' ? 'Spanish' : 'English'
 
-  // Extract unique placeholders from generated docs
-  const placeholders = useMemo(() => extractPlaceholders(documents), [documents])
-
   // Remaining (unfilled) placeholders for QA gate
   const remaining = useMemo(() => {
     if (!documents) return []
@@ -833,175 +889,54 @@ export default function DocumentFactoryClient({
     const cvTarget = documents.cv_target ?? null
     const anschTarget = documents.anschreiben_target ?? null
 
+    const hasFacts = Object.values(facts).some(v => v.trim().length > 0)
+
     return (
       <div style={{ marginTop: 24 }}>
-        {/* Warning banner */}
-        <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 8, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: '#FCD34D' }}>
-          Fill in your real details below, then click <strong>Regenerate</strong> to embed them into the documents.
-          Download unlocks once all{' '}
-          <span style={{ background: 'rgba(245,158,11,0.2)', color: '#F59E0B', padding: '0 3px', borderRadius: 3 }}>[bracketed]</span>
-          {' '}placeholders are replaced.
-        </div>
+        <style>{`
+          @keyframes cvPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+          @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        `}</style>
 
-        {/* ── Fact editor ──────────────────────────────────────────────────── */}
-        {placeholders.length > 0 && (
-          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 18, marginBottom: 20 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#F9FAFB', marginBottom: 14 }}>
-              Your Details
+        {/* Quiet instruction */}
+        <p style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 16, marginTop: 0 }}>
+          Click any <span style={{ color: '#F59E0B' }}>highlighted field</span> to edit it directly.
+        </p>
+
+        {/* ── Tailor to a Position ─────────────────────────────────────────── */}
+        {matchedPositions.length > 0 && (
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 16, marginBottom: 20 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#F9FAFB', marginBottom: 4 }}>
+              Tailor to a Position
             </div>
-
-            {/* Group fields by category */}
-            {(() => {
-              const employerFields = placeholders.filter(p =>
-                ['Arbeitgeber', 'Name des Arbeitgebers', 'Position', 'Stelle', 'Berufsbezeichnung', 'Zeitraum', 'Zeitraum, z.B. 2021–2023', 'Zeitraum z.B. 2021–2023'].includes(p)
-              )
-              const educationFields = placeholders.filter(p =>
-                ['Name der Bildungseinrichtung', 'Bildungseinrichtung', 'Universität', 'Schule', 'Studienzeitraum'].includes(p)
-              )
-              const contactFields = placeholders.filter(p =>
-                ['Ihre Adresse', 'PLZ, Ort', 'Ihre Telefonnummer', 'Telefon', 'Ort'].includes(p)
-              )
-              const knownSet = new Set([...employerFields, ...educationFields, ...contactFields])
-              const otherFields = placeholders.filter(p => !knownSet.has(p))
-
-              const renderGroup = (title: string, fields: string[]) => {
-                if (!fields.length) return null
+            <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 10 }}>
+              Select a matched position and your CV will reflect relevant language from the posting.
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {matchedPositions.map(p => {
+                const sel = selectedPositionIds.includes(p.refnr)
                 return (
-                  <div key={title} style={{ marginBottom: 16 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>{title}</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
-                      {fields.map(inner => {
-                        const known = KNOWN_PLACEHOLDERS[inner]
-                        const label = known?.label ?? inner
-                        return (
-                          <div key={inner}>
-                            <label style={{ fontSize: 11, color: '#9CA3AF', display: 'block', marginBottom: 4 }}>
-                              {label}
-                              <span style={{ color: '#F59E0B', marginLeft: 4 }}>[{inner}]</span>
-                            </label>
-                            <input
-                              type="text"
-                              value={facts[inner] ?? ''}
-                              onChange={e => setFacts(f => ({ ...f, [inner]: e.target.value }))}
-                              placeholder={`Enter ${label.toLowerCase()}…`}
-                              style={{
-                                width: '100%',
-                                background: 'rgba(255,255,255,0.05)',
-                                border: facts[inner]?.trim() ? '1px solid rgba(37,99,235,0.4)' : '1px solid rgba(255,255,255,0.1)',
-                                borderRadius: 6,
-                                padding: '7px 10px',
-                                fontSize: 13,
-                                color: '#F9FAFB',
-                                outline: 'none',
-                                boxSizing: 'border-box',
-                              }}
-                            />
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
+                  <button
+                    key={p.refnr}
+                    onClick={() => setSelectedPositionIds(ids =>
+                      sel ? ids.filter(id => id !== p.refnr) : [...ids, p.refnr]
+                    )}
+                    style={{
+                      background: sel ? 'rgba(37,99,235,0.25)' : 'rgba(255,255,255,0.04)',
+                      border: sel ? '1px solid rgba(37,99,235,0.5)' : '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: 9999,
+                      padding: '5px 12px',
+                      fontSize: 11,
+                      color: sel ? '#60A5FA' : '#9CA3AF',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {p.titel ?? p.beruf ?? p.refnr}
+                    {p.arbeitgeber ? ` · ${p.arbeitgeber}` : ''}
+                  </button>
                 )
-              }
-
-              return (
-                <>
-                  {renderGroup('Work Experience', employerFields)}
-                  {renderGroup('Education', educationFields)}
-                  {renderGroup('Contact Info', contactFields)}
-                  {renderGroup('Other', otherFields)}
-                </>
-              )
-            })()}
-
-            {/* Employment duties free text */}
-            <div style={{ marginTop: 8 }}>
-              <label style={{ fontSize: 11, color: '#9CA3AF', display: 'block', marginBottom: 4 }}>
-                Brief description of your work duties (optional, 1-3 sentences)
-              </label>
-              <textarea
-                value={facts['__duties__'] ?? ''}
-                onChange={e => setFacts(f => ({ ...f, '__duties__': e.target.value }))}
-                placeholder="Describe your main responsibilities and achievements in your most recent role…"
-                rows={3}
-                style={{
-                  width: '100%',
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 6,
-                  padding: '7px 10px',
-                  fontSize: 13,
-                  color: '#F9FAFB',
-                  outline: 'none',
-                  resize: 'vertical',
-                  boxSizing: 'border-box',
-                }}
-              />
+              })}
             </div>
-
-            {/* Position multi-select */}
-            {matchedPositions.length > 0 && (
-              <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 6 }}>
-                  Tailor this CV to specific positions (optional) — selects vocabulary from the position description:
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {matchedPositions.map(p => {
-                    const sel = selectedPositionIds.includes(p.refnr)
-                    return (
-                      <button
-                        key={p.refnr}
-                        onClick={() => setSelectedPositionIds(ids =>
-                          sel ? ids.filter(id => id !== p.refnr) : [...ids, p.refnr]
-                        )}
-                        style={{
-                          background: sel ? 'rgba(37,99,235,0.25)' : 'rgba(255,255,255,0.04)',
-                          border: sel ? '1px solid rgba(37,99,235,0.5)' : '1px solid rgba(255,255,255,0.1)',
-                          borderRadius: 9999,
-                          padding: '5px 12px',
-                          fontSize: 11,
-                          color: sel ? '#60A5FA' : '#9CA3AF',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {p.titel ?? p.beruf ?? p.refnr}
-                        {p.arbeitgeber ? ` · ${p.arbeitgeber}` : ''}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Regenerate button */}
-            <div style={{ marginTop: 16, display: 'flex', gap: 10, alignItems: 'center' }}>
-              <button
-                onClick={handleRegenerate}
-                disabled={regenerating}
-                style={{
-                  background: 'rgba(37,99,235,0.15)',
-                  border: '1px solid rgba(37,99,235,0.4)',
-                  borderRadius: 9999,
-                  padding: '10px 22px',
-                  fontSize: 13,
-                  color: '#60A5FA',
-                  cursor: regenerating ? 'wait' : 'pointer',
-                  opacity: regenerating ? 0.7 : 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 7,
-                }}
-              >
-                <RefreshCw size={14} style={{ animation: regenerating ? 'spin 1s linear infinite' : 'none' }} />
-                {regenerating ? 'Regenerating…' : 'Regenerate with my info'}
-              </button>
-              <span style={{ fontSize: 11, color: '#6B7280' }}>You can regenerate multiple times as you fill in more details.</span>
-            </div>
-            {regenError && (
-              <div style={{ marginTop: 8 }}>
-                <ErrorMessage message={regenError} onRetry={handleRegenerate} onDismiss={() => setRegenError(null)} />
-              </div>
-            )}
           </div>
         )}
 
@@ -1032,7 +967,7 @@ export default function DocumentFactoryClient({
             <div style={{ fontSize: 13, fontWeight: 700, color: '#F9FAFB', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 7 }}>
               🇩🇪 <span>DE</span>
             </div>
-            <CVColumn cv={cvDe} anschreiben={anschDe} />
+            <CVColumn cv={cvDe} anschreiben={anschDe} facts={facts} setFacts={setFacts} regenerating={regenerating} />
           </div>
 
           {cvTarget && anschTarget && (
@@ -1040,7 +975,7 @@ export default function DocumentFactoryClient({
               <div style={{ fontSize: 13, fontWeight: 700, color: '#F9FAFB', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 7 }}>
                 {langFlag} <span>{lang.toUpperCase()}</span>
               </div>
-              <CVColumn cv={cvTarget} anschreiben={anschTarget} />
+              <CVColumn cv={cvTarget} anschreiben={anschTarget} facts={facts} setFacts={setFacts} regenerating={regenerating} />
             </div>
           )}
         </div>
@@ -1090,6 +1025,41 @@ export default function DocumentFactoryClient({
             </button>
           )}
         </div>
+
+        {/* Regenerate error */}
+        {regenError && (
+          <div style={{ marginTop: 16 }}>
+            <ErrorMessage message={regenError} onRetry={handleRegenerate} onDismiss={() => setRegenError(null)} />
+          </div>
+        )}
+
+        {/* ── Floating "Update My CV" — visible once any placeholder is filled */}
+        {hasFacts && (
+          <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
+            <button
+              onClick={handleRegenerate}
+              disabled={regenerating}
+              style={{
+                background: regenerating ? 'rgba(37,99,235,0.8)' : '#2563EB',
+                color: 'white',
+                padding: '12px 28px',
+                borderRadius: 9999,
+                fontWeight: 700,
+                fontSize: 14,
+                border: 'none',
+                cursor: regenerating ? 'wait' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                boxShadow: '0 4px 24px rgba(0,0,0,0.5), 0 1px 8px rgba(37,99,235,0.4)',
+                opacity: regenerating ? 0.85 : 1,
+              }}
+            >
+              <RefreshCw size={15} style={{ animation: regenerating ? 'spin 1s linear infinite' : 'none' }} />
+              {regenerating ? 'Updating…' : 'Update My CV'}
+            </button>
+          </div>
+        )}
       </div>
     )
   }
