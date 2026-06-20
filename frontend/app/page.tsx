@@ -692,9 +692,21 @@ export default function HomePage() {
           paddingTop: '32px',
           paddingBottom: '32px',
           color: '#6B7280',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '12px',
         }}
       >
-        Klar © 2026 · Powered by AI · Reviewed by humans
+        <span>Klar © 2026 · Powered by AI · Reviewed by humans</span>
+        <div style={{ display: 'flex', gap: '20px' }}>
+          <Link href="/terms" style={{ color: '#6B7280', textDecoration: 'underline' }}>
+            Terms of Service
+          </Link>
+          <Link href="/privacy" style={{ color: '#6B7280', textDecoration: 'underline' }}>
+            Privacy Policy
+          </Link>
+        </div>
       </footer>
     </div>
   )

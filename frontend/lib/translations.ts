@@ -94,7 +94,12 @@ export const translations = {
       loading4: "Building your personalised roadmap...",
       loading5: "Finding the best opportunities for you...",
       loading6: "Almost ready...",
-      loadingSub: "This usually takes 30–60 seconds"
+      loadingSub: "This usually takes 30–60 seconds",
+      consentPre: "I agree to the ",
+      consentTermsLink: "Terms of Service",
+      consentMid: " and ",
+      consentPrivacyLink: "Privacy Policy",
+      consentPost: ", and that Klar may process my personal data to generate a Germany readiness assessment. Results are reviewed by a human consultant before delivery.",
     },
     results: {
       pendingTitle: "Your diagnostic is being reviewed.",
@@ -209,7 +214,12 @@ export const translations = {
       loading4: "Construyendo tu hoja de ruta personalizada...",
       loading5: "Buscando las mejores oportunidades para ti...",
       loading6: "Casi listo...",
-      loadingSub: "Esto generalmente toma 30–60 segundos"
+      loadingSub: "Esto generalmente toma 30–60 segundos",
+      consentPre: "Acepto los ",
+      consentTermsLink: "Términos de Servicio",
+      consentMid: " y la ",
+      consentPrivacyLink: "Política de Privacidad",
+      consentPost: ", y que Klar procese mis datos personales para generar un diagnóstico de preparación para Alemania. Los resultados son revisados por un consultor humano antes de su entrega.",
     },
     results: {
       pendingTitle: "Tu diagnóstico está siendo revisado.",

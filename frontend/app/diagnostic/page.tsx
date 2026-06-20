@@ -718,11 +718,15 @@ export default function DiagnosticPage() {
                   }}
                 />
                 <span style={{ fontSize: '12px', color: '#6B7280', lineHeight: 1.5 }}>
-                  I agree that Klar may process my personal data to generate a Germany readiness assessment, as described in the{' '}
-                  <a href="/privacy" style={{ color: 'var(--accent-light)', textDecoration: 'underline' }}>
-                    Privacy Policy
+                  {f.consentPre}
+                  <a href="/terms" style={{ color: 'var(--accent-light)', textDecoration: 'underline' }}>
+                    {f.consentTermsLink}
                   </a>
-                  . I understand this data will be reviewed by a human consultant before delivery.
+                  {f.consentMid}
+                  <a href="/privacy" style={{ color: 'var(--accent-light)', textDecoration: 'underline' }}>
+                    {f.consentPrivacyLink}
+                  </a>
+                  {f.consentPost}
                 </span>
               </label>
               <p
